@@ -6,7 +6,6 @@ import { prisma } from "@/lib/prisma";
 const createVehicleSchema = z.object({
   uniqueIdentifier: z.string().trim().min(2).max(40),
   licensePlate: z.string().trim().min(2).max(20).optional().nullable(),
-  vin: z.string().trim().min(5).max(40).optional().nullable(),
   manufacturer: z.string().trim().min(2).max(80),
   model: z.string().trim().min(1).max(80),
   year: z.number().int().min(1886).max(2100),
@@ -42,7 +41,6 @@ export async function GET(request: Request) {
           OR: [
             { uniqueIdentifier: { contains: search, mode: "insensitive" as const } },
             { licensePlate: { contains: search, mode: "insensitive" as const } },
-            { vin: { contains: search, mode: "insensitive" as const } },
           ],
         }
       : {}),

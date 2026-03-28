@@ -35,6 +35,7 @@ In a second terminal:
 
 ```bash
 docker compose exec web npx prisma migrate dev --name init
+docker compose exec web npm run prisma:seed
 ```
 
 Open:
@@ -48,6 +49,8 @@ From `web/`:
 ```bash
 npm install
 npm run prisma:generate
+npm run prisma:migrate -- --name init
+npm run prisma:seed
 npm run dev
 ```
 
@@ -59,6 +62,12 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 - `GET /api/vehicles`
 - `POST /api/vehicles` (authenticated)
 - `GET /api/vehicles/:id`
+
+## Current Web Routes
+
+- `/vehicles`
+- `/vehicles/[id]`
+- `/vehicles/new`
 
 ## Development Guidelines
 

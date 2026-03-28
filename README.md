@@ -53,6 +53,10 @@ This prevents API drift and keeps behavior consistent across platforms.
 	- `GET /api/vehicles`
 	- `POST /api/vehicles` (authenticated)
 	- `GET /api/vehicles/:id`
+- Web routes:
+	- `/vehicles` (list and filter)
+	- `/vehicles/[id]` (detail)
+	- `/vehicles/new` (authenticated create form)
 
 ## Parallel Roadmap (Web + Mobile)
 
@@ -74,6 +78,7 @@ docker compose up --build
 
 ```bash
 docker compose exec web npx prisma migrate dev --name init
+docker compose exec web npm run prisma:seed
 ```
 
 3. Open:
@@ -88,7 +93,13 @@ From `web/`:
 ```bash
 npm install
 npm run prisma:generate
+npm run prisma:migrate -- --name init
+npm run prisma:seed
 npm run dev
 ```
 
 Set `DATABASE_URL` in `web/.env` to a reachable PostgreSQL instance.
+
+## Sprint 1 Tracking
+
+- Use the acceptance checklist in `docs/sprint-1-checklist.md` while implementing and validating the first vertical slice.

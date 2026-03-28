@@ -41,6 +41,7 @@ model User {
   emailVerified  DateTime?
   passwordHash   String?
   image          String?
+  profile        Json?
   role           UserRole  @default(USER)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -60,11 +61,11 @@ model Vehicle {
   id                String            @id @default(cuid())
   uniqueIdentifier  String            @unique
   licensePlate      String?           @unique
-  vin               String?           @unique
   manufacturer      String
   model             String
   year              Int
   description       String?
+  attributes        Json?
   visibility        VehicleVisibility @default(PUBLIC)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
