@@ -62,12 +62,16 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 - `GET /api/vehicles`
 - `POST /api/vehicles` (authenticated)
 - `GET /api/vehicles/:id`
+- `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
+- `POST /api/vehicles/:id/photos` (authenticated, owner/moderator/admin)
 
 ## Current Web Routes
 
 - `/vehicles`
 - `/vehicles/[id]`
 - `/vehicles/new`
+- `/login`
+- `/register`
 
 ## Development Guidelines
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthSession } from "@/auth";
+import { VehicleContributionForms } from "@/components/vehicle-contribution-forms";
 import { prisma } from "@/lib/prisma";
 
 export default async function VehicleDetailPage({
@@ -9,6 +10,7 @@ export default async function VehicleDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await getAuthSession();
 
   const vehicle = await prisma.vehicle.findUnique({
     where: { id },
@@ -30,11 +32,22 @@ export default async function VehicleDetailPage({
   }
 
   if (vehicle.visibility === "PRIVATE") {
-    const session = await getAuthSession();
     if (session?.user?.id !== vehicle.createdByUserId) {
       notFound();
     }
   }
+
+  const currentUser = session?.user?.id
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { id: true, role: true },
+      })
+    : null;
+
+  const canContribute = Boolean(
+    currentUser &&
+      (currentUser.id === vehicle.createdByUserId || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN"),
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 md:px-10">
@@ -63,6 +76,13 @@ export default async function VehicleDetailPage({
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
         <h2 className="text-xl font-semibold text-zinc-100">Timeline</h2>
+        <div className="mt-4">
+          <VehicleContributionForms
+            vehicleId={vehicle.id}
+            canContribute={canContribute}
+            isSignedIn={Boolean(session?.user?.id)}
+          />
+        </div>
         <div className="mt-4 space-y-3">
           {vehicle.events.length === 0 ? <p className="text-sm text-zinc-300">No events yet.</p> : null}
 

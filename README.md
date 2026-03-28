@@ -103,3 +103,7 @@ Set `DATABASE_URL` in `web/.env` to a reachable PostgreSQL instance.
 ## Sprint 1 Tracking
 
 - Use the acceptance checklist in `docs/sprint-1-checklist.md` while implementing and validating the first vertical slice.
+
+## Sprint 2 Tracking
+
+- Use `docs/sprint-2-checklist.md` for timeline/photo contribution and auth UX acceptance.
