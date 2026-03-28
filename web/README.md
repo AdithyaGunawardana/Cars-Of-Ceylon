@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cars-Of-Ceylon Web App
 
-## Getting Started
+Next.js application for the web-first product experience.
 
-First, run the development server:
+## Strategy
+
+- Web is the primary product surface.
+- Mobile is built in parallel against stable web APIs.
+- Backend contracts are shared by web and mobile clients.
+
+For cross-platform features, follow this sequence:
+
+1. Define API contract and permissions
+2. Implement web flow
+3. Implement mobile flow
+4. Validate both clients with the same acceptance criteria
+
+## Stack
+
+- Next.js (App Router, TypeScript)
+- Tailwind CSS
+- Prisma + PostgreSQL
+- Auth.js (NextAuth)
+- Docker Compose for local app + DB
+
+## Run Locally (Docker Recommended)
+
+From repository root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+In a second terminal:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+docker compose exec web npx prisma migrate dev --name init
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open:
 
-## Learn More
+- http://localhost:3000
 
-To learn more about Next.js, take a look at the following resources:
+## Run Locally (Without Docker)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+From `web/`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run prisma:generate
+npm run dev
+```
 
-## Deploy on Vercel
+Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Current API Foundation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `POST /api/auth/register`
+- `GET /api/vehicles`
+- `POST /api/vehicles` (authenticated)
+- `GET /api/vehicles/:id`
+
+## Development Guidelines
+
+- Keep validation and business rules server-side.
+- Keep response shapes consistent and mobile-friendly.
+- Add or update API contracts before building cross-platform UI.
+- Use feature flags when a feature is not fully ready on both clients.

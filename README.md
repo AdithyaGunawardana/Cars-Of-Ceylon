@@ -2,6 +2,23 @@
 
 A web-based car archive for Sri Lankan automobiles, focused on preserving vehicle history, albums, and community contributions.
 
+## Product Direction
+
+- Web-first development for speed, SEO, and product stability
+- Mobile app developed in parallel using the same backend contracts
+- Single backend and shared domain model for both clients
+
+## Execution Model
+
+Each cross-platform feature should follow this order:
+
+1. API contract (request, response, validation, permissions)
+2. Web implementation
+3. Mobile implementation
+4. Shared verification across web and mobile
+
+This prevents API drift and keeps behavior consistent across platforms.
+
 ## Current Stack
 
 - Next.js (React + TypeScript)
@@ -10,6 +27,13 @@ A web-based car archive for Sri Lankan automobiles, focused on preserving vehicl
 - Prisma ORM
 - Auth.js (NextAuth)
 - Docker + Docker Compose
+
+## Planned Mobile Stack
+
+- React Native + Expo
+- Shared backend APIs from web
+- Secure token-based mobile auth flow
+- Same moderation and audit rules as web
 
 ## Implemented Foundation
 
@@ -29,6 +53,14 @@ A web-based car archive for Sri Lankan automobiles, focused on preserving vehicl
 	- `GET /api/vehicles`
 	- `POST /api/vehicles` (authenticated)
 	- `GET /api/vehicles/:id`
+
+## Parallel Roadmap (Web + Mobile)
+
+1. Stabilize API contracts for core entities (vehicles, events, photos, moderation)
+2. Complete web feature flows first for each slice
+3. Implement matching mobile flows on stable endpoints
+4. Run shared QA on the same acceptance checklist
+5. Add platform-specific polish after parity
 
 ## Run With Docker
 
