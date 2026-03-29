@@ -7,20 +7,17 @@ vi.mock("@/auth", () => ({
   getAuthSession: vi.fn(),
 }));
 
-// Mock Prisma client before importing routes that use it.
-class MockPrismaClientKnownRequestError extends Error {
-  code: string;
-  clientVersion: string;
-  constructor(message: string, { code, clientVersion }: { code: string; clientVersion: string }) {
-    super(message);
-    this.code = code;
-    this.clientVersion = clientVersion;
-  }
-}
-
 vi.mock("@prisma/client", () => ({
   Prisma: {
-    PrismaClientKnownRequestError: MockPrismaClientKnownRequestError,
+    PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {
+      code: string;
+      clientVersion: string;
+      constructor(message: string, { code, clientVersion }: { code: string; clientVersion: string }) {
+        super(message);
+        this.code = code;
+        this.clientVersion = clientVersion;
+      }
+    },
   },
 }));
 
