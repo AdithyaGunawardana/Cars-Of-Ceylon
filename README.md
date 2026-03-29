@@ -53,6 +53,15 @@ This prevents API drift and keeps behavior consistent across platforms.
 	- `GET /api/vehicles`
 	- `POST /api/vehicles` (authenticated)
 	- `GET /api/vehicles/:id`
+	- `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
+	- `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
+	- `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
+- Web routes:
+	- `/vehicles` (list and filter)
+	- `/vehicles/[id]` (detail)
+	- `/vehicles/new` (authenticated create form)
+	- `/login`
+	- `/register`
 
 ## Parallel Roadmap (Web + Mobile)
 
@@ -74,12 +83,15 @@ docker compose up --build
 
 ```bash
 docker compose exec web npx prisma migrate dev --name init
+docker compose exec web npm run prisma:seed
 ```
 
 3. Open:
 
 - App: http://localhost:3000
 - PostgreSQL: localhost:5432
+- MinIO S3 API: http://localhost:9000
+- MinIO Console: http://localhost:9001
 
 ## Local (Non-Docker) Run
 
@@ -88,7 +100,37 @@ From `web/`:
 ```bash
 npm install
 npm run prisma:generate
+npm run prisma:migrate -- --name init
+npm run prisma:seed
 npm run dev
 ```
 
 Set `DATABASE_URL` in `web/.env` to a reachable PostgreSQL instance.
+
+For signed photo uploads, also configure in `web/.env`:
+
+- `UPLOAD_S3_ENDPOINT`
+- `UPLOAD_S3_REGION`
+- `UPLOAD_S3_BUCKET`
+- `UPLOAD_S3_ACCESS_KEY_ID`
+- `UPLOAD_S3_SECRET_ACCESS_KEY`
+- `UPLOAD_S3_PUBLIC_BASE_URL` (optional; defaults to endpoint-based URL)
+
+When using Docker Compose in this repository, these upload variables are pre-wired to the local MinIO service.
+
+Upload constraints currently enforced server-side:
+
+- Allowed image types: JPEG, PNG, WebP
+- Maximum file size: 10 MB
+
+## Sprint 1 Tracking
+
+- Use the acceptance checklist in `docs/sprint-1-checklist.md` while implementing and validating the first vertical slice.
+
+## Sprint 2 Tracking
+
+- Use `docs/sprint-2-checklist.md` for timeline/photo contribution and auth UX acceptance.
+
+## Sprint 3 Tracking
+
+- Use `docs/sprint-3-checklist.md` for signed upload flow and photo finalization acceptance.

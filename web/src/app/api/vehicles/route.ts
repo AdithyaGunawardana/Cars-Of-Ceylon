@@ -6,7 +6,6 @@ import { prisma } from "@/lib/prisma";
 const createVehicleSchema = z.object({
   uniqueIdentifier: z.string().trim().min(2).max(40),
   licensePlate: z.string().trim().min(2).max(20).optional().nullable(),
-  vin: z.string().trim().min(5).max(40).optional().nullable(),
   manufacturer: z.string().trim().min(2).max(80),
   model: z.string().trim().min(1).max(80),
   year: z.number().int().min(1886).max(2100),
@@ -22,6 +21,7 @@ const listVehicleSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
 
+// Lists public vehicles with filters/pagination.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const parsed = listVehicleSchema.safeParse(Object.fromEntries(searchParams));
@@ -32,6 +32,7 @@ export async function GET(request: Request) {
 
   const { manufacturer, model, year, search, page, pageSize } = parsed.data;
 
+  // Build dynamic filters so list/search behavior stays consistent for web and future mobile clients.
   const where = {
     visibility: "PUBLIC" as const,
     ...(manufacturer ? { manufacturer: { contains: manufacturer, mode: "insensitive" as const } } : {}),
@@ -42,12 +43,12 @@ export async function GET(request: Request) {
           OR: [
             { uniqueIdentifier: { contains: search, mode: "insensitive" as const } },
             { licensePlate: { contains: search, mode: "insensitive" as const } },
-            { vin: { contains: search, mode: "insensitive" as const } },
           ],
         }
       : {}),
   };
 
+  // Fetch result page and total count together for efficient pagination metadata.
   const [items, total] = await Promise.all([
     prisma.vehicle.findMany({
       where,
@@ -77,6 +78,7 @@ export async function GET(request: Request) {
   });
 }
 
+// Creates a new vehicle record for the authenticated contributor.
 export async function POST(request: Request) {
   const session = await getAuthSession();
   if (!session?.user?.id) {
@@ -98,6 +100,7 @@ export async function POST(request: Request) {
       ...parsed.data,
       createdByUserId: session.user.id,
       events: {
+        // Every new vehicle starts with a CREATED event so timeline history is never empty.
         create: {
           userId: session.user.id,
           type: "CREATED",

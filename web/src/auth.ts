@@ -12,6 +12,7 @@ const credentialSchema = z.object({
   password: z.string().min(8),
 });
 
+// Enable providers only when their env configuration exists, so local/dev can run with credentials only.
 const providers = [
   Credentials({
     name: "Email and password",
@@ -67,16 +68,25 @@ const providers = [
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
-    strategy: "database",
+    // Credentials provider requires JWT-backed sessions in NextAuth.
+    strategy: "jwt",
   },
   pages: {
     signIn: "/login",
   },
   providers,
   callbacks: {
-    async session({ session, user }) {
-      if (session.user) {
-        session.user.id = user.id;
+    async jwt({ token, user }) {
+      // Persist user id in JWT so session callback can expose it consistently.
+      if (user?.id) {
+        token.sub = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // Expose user id in session payload for downstream ownership/permission checks.
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
       }
       return session;
     },

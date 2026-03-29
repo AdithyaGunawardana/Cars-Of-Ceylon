@@ -1,0 +1,41 @@
+name: Web CI
+
+on:
+  pull_request:
+    paths:
+      - "web/**"
+      - ".github/workflows/web-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "web/**"
+      - ".github/workflows/web-ci.yml"
+
+jobs:
+  web-quality:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Keep fast feedback focused on code health and API regression coverage.
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test

@@ -9,8 +9,10 @@ const registerSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
+// Creates credential users with validated input and hashed passwords.
 export async function POST(request: Request) {
   const json = await request.json().catch(() => null);
+  // Validate early and return structured field errors for clients.
   const parsed = registerSchema.safeParse(json);
 
   if (!parsed.success) {
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email is already registered" }, { status: 409 });
   }
 
+  // Store only a password hash; plaintext passwords never touch persistence.
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
   const user = await prisma.user.create({

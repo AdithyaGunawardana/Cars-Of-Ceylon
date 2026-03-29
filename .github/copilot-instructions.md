@@ -48,7 +48,7 @@ Registered users can add vehicles.
 -   Keep a `uniqueIdentifier` per vehicle (required)
 -   Hash passwords
 -   Simple code
--   Reusable components
+-   Reusable and modular components
 
 ## Implementation Notes
 

@@ -7,6 +7,7 @@ const idSchema = z.object({
   id: z.string().min(1),
 });
 
+// Returns one vehicle with timeline/photos and enforces private visibility rules.
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
   const params = await context.params;
   const parsed = idSchema.safeParse(params);
@@ -36,6 +37,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 
   if (vehicle.visibility === "PRIVATE") {
     const session = await getAuthSession();
+    // Return 404 for unauthorized private access to avoid leaking record existence.
     const canViewPrivate = session?.user?.id === vehicle.createdByUserId;
     if (!canViewPrivate) {
       return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
