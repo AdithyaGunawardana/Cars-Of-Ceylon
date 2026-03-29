@@ -53,6 +53,8 @@ This prevents API drift and keeps behavior consistent across platforms.
 	- `GET /api/vehicles`
 	- `POST /api/vehicles` (authenticated)
 	- `GET /api/vehicles/:id`
+	- `PATCH /api/vehicles/:id` (authenticated, owner/moderator/admin)
+	- `DELETE /api/vehicles/:id` (authenticated, owner/moderator/admin)
 	- `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
 	- `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
 	- `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
@@ -137,6 +139,10 @@ Upload constraints currently enforced server-side:
 ## Sprint 3 Tracking
 
 - Use `docs/sprint-3-checklist.md` for signed upload flow and photo finalization acceptance.
+
+## Sprint 4 Tracking
+
+- Use `docs/sprint-4-checklist.md` for moderation report APIs and moderator queue acceptance.
 
 ## Shared Contract Modules
 

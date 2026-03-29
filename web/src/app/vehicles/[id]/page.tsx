@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthSession } from "@/auth";
 import { VehicleContributionForms } from "@/components/vehicle-contribution-forms";
+import { VehicleReportForm } from "@/components/vehicle-report-form";
 import { prisma } from "@/lib/prisma";
 
 export default async function VehicleDetailPage({
@@ -116,6 +117,8 @@ export default async function VehicleDetailPage({
           </ul>
         )}
       </section>
+
+      <VehicleReportForm vehicleId={vehicle.id} isSignedIn={Boolean(session?.user?.id)} />
     </main>
   );
 }

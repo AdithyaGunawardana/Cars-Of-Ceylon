@@ -64,6 +64,8 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 - `GET /api/vehicles`
 - `POST /api/vehicles` (authenticated)
 - `GET /api/vehicles/:id`
+- `PATCH /api/vehicles/:id` (authenticated, owner/moderator/admin)
+- `DELETE /api/vehicles/:id` (authenticated, owner/moderator/admin)
 - `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
 - `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
 - `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
@@ -76,8 +78,11 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 - `/vehicles`
 - `/vehicles/[id]`
 - `/vehicles/new`
+- `/moderation/reports` (moderator/admin)
 - `/login`
 - `/register`
+
+The global top navigation now links to Moderation for moderator/admin users only.
 
 ## Development Guidelines
 

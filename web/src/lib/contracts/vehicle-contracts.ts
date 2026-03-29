@@ -25,6 +25,21 @@ export const createVehicleRequestSchema = z.object({
   description: z.string().trim().max(5000).optional().nullable(),
 });
 
+// Contract for patching existing vehicle metadata.
+export const updateVehicleRequestSchema = z
+  .object({
+    uniqueIdentifier: z.string().trim().min(2).max(40).optional(),
+    licensePlate: z.string().trim().min(2).max(20).nullable().optional(),
+    manufacturer: z.string().trim().min(2).max(80).optional(),
+    model: z.string().trim().min(1).max(80).optional(),
+    year: z.number().int().min(1886).max(2100).optional(),
+    description: z.string().trim().max(5000).nullable().optional(),
+    visibility: z.enum(["PUBLIC", "PRIVATE"]).optional(),
+  })
+  .refine((payload) => Object.keys(payload).length > 0, {
+    message: "At least one field is required",
+  });
+
 // Contract for creating timeline events on vehicles.
 export const createVehicleEventRequestSchema = z.object({
   type: z.enum(["CREATED", "OWNERSHIP_CHANGE", "SERVICE", "ACCIDENT", "MODIFICATION", "INSPECTION", "NOTE"]),
@@ -46,6 +61,14 @@ export const vehicleListSuccessSchema = z.object({
 });
 
 export const createVehicleSuccessSchema = z.object({
+  vehicle: z.object({ id: z.string().min(1) }).passthrough(),
+});
+
+export const vehicleDetailSuccessSchema = z.object({
+  vehicle: z.object({ id: z.string().min(1) }).passthrough(),
+});
+
+export const updateVehicleSuccessSchema = z.object({
   vehicle: z.object({ id: z.string().min(1) }).passthrough(),
 });
 
