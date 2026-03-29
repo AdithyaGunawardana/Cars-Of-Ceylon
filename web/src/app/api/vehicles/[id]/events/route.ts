@@ -23,6 +23,7 @@ const createEventSchema = z.object({
   sourceUrl: z.string().url().max(500).optional().nullable(),
 });
 
+// Creates a timeline event for a vehicle when the caller has contribution permissions.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await getAuthSession();
   if (!session?.user?.id) {
@@ -54,6 +55,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Owners and moderation roles can contribute timeline records.
   const canContribute =
     vehicle.createdByUserId === currentUser.id || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
 
@@ -69,6 +71,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       title: parsedBody.data.title,
       details: parsedBody.data.details,
       sourceUrl: parsedBody.data.sourceUrl,
+      // Persist a real timestamp when provided; keep null when unknown.
       occurredAt: parsedBody.data.occurredAt ? new Date(parsedBody.data.occurredAt) : null,
     },
   });

@@ -2,17 +2,18 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { buildObjectUrl, getUploadStorageConfig } from "@/lib/upload-config";
 
 const paramsSchema = z.object({
   id: z.string().min(1),
 });
 
 const createPhotoSchema = z.object({
-  url: z.string().url().max(1200),
-  storageKey: z.string().trim().min(1).max(255).optional().nullable(),
+  storageKey: z.string().trim().min(1).max(512),
   caption: z.string().trim().max(500).optional().nullable(),
 });
 
+// Finalizes an uploaded object by writing photo metadata to the database.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await getAuthSession();
   if (!session?.user?.id) {
@@ -44,6 +45,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Mirror event contribution policy: owner, moderator, or admin can add media entries.
   const canContribute =
     vehicle.createdByUserId === currentUser.id || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
 
@@ -51,12 +53,23 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const storageConfig = getUploadStorageConfig();
+  if (!storageConfig) {
+    return NextResponse.json(
+      { error: "Upload storage is not configured. Set UPLOAD_S3_* environment variables." },
+      { status: 503 },
+    );
+  }
+
+  // Rebuild the canonical URL on the server to avoid trusting client-provided public URLs.
+  const url = buildObjectUrl(parsedBody.data.storageKey, storageConfig);
+
   const photo = await prisma.vehiclePhoto.create({
     data: {
       vehicleId: vehicle.id,
       userId: currentUser.id,
-      url: parsedBody.data.url,
-      storageKey: parsedBody.data.storageKey ?? parsedBody.data.url,
+      url,
+      storageKey: parsedBody.data.storageKey,
       caption: parsedBody.data.caption,
     },
   });

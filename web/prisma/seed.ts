@@ -17,6 +17,7 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 
+  // Upsert keeps seed re-runnable without creating duplicate admin users.
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
     update: {
@@ -51,6 +52,7 @@ async function main() {
     },
   ];
 
+  // Upsert sample records so repeated seeds update canonical demo data.
   for (const vehicle of sampleVehicles) {
     await prisma.vehicle.upsert({
       where: { uniqueIdentifier: vehicle.uniqueIdentifier },

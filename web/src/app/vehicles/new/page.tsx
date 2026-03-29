@@ -15,6 +15,7 @@ const formSchema = z.object({
   description: z.string().trim().max(5000).optional().nullable(),
 });
 
+// Server action for authenticated vehicle creation.
 async function createVehicle(formData: FormData) {
   "use server";
 
@@ -38,6 +39,7 @@ async function createVehicle(formData: FormData) {
   }
 
   try {
+    // Create vehicle and first timeline event atomically so each record has an initial history entry.
     const vehicle = await prisma.vehicle.create({
       data: {
         ...parsed.data,
@@ -56,6 +58,7 @@ async function createVehicle(formData: FormData) {
     revalidatePath("/vehicles");
     redirect(`/vehicles/${vehicle.id}`);
   } catch (error) {
+    // Prisma P2002 covers uniqueIdentifier/licensePlate uniqueness violations.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       redirect("/vehicles/new?error=duplicate");
     }

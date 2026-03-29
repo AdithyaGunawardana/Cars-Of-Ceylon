@@ -12,6 +12,7 @@ export default async function VehicleDetailPage({
   const { id } = await params;
   const session = await getAuthSession();
 
+  // Load full detail payload for timeline and album rendering in a single query.
   const vehicle = await prisma.vehicle.findUnique({
     where: { id },
     include: {
@@ -32,11 +33,13 @@ export default async function VehicleDetailPage({
   }
 
   if (vehicle.visibility === "PRIVATE") {
+    // Match API behavior: hide private records from non-owners.
     if (session?.user?.id !== vehicle.createdByUserId) {
       notFound();
     }
   }
 
+  // Compute contribution permission once and pass it to both timeline and photo form controls.
   const currentUser = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },

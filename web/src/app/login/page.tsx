@@ -9,6 +9,7 @@ import { signIn } from "next-auth/react";
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Preserve intended destination after authentication.
   const callbackUrl = searchParams.get("callbackUrl") ?? "/vehicles";
   const registered = searchParams.get("registered") === "1";
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +88,7 @@ function LoginPageContent() {
 
 export default function LoginPage() {
   return (
+    // Keep useSearchParams in a Suspense boundary to satisfy App Router rendering requirements.
     <Suspense fallback={<main className="mx-auto w-full max-w-md px-6 py-10 text-sm text-zinc-300">Loading...</main>}>
       <LoginPageContent />
     </Suspense>

@@ -8,6 +8,7 @@ if (!connectionString) {
 
 const adapter = new PrismaPg({ connectionString });
 
+// Reuse a single Prisma client in development to avoid exhausting DB connections on hot reloads.
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
@@ -15,6 +16,7 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    // Keep verbose query logs in development only.
     adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });

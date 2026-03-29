@@ -11,6 +11,7 @@ type Props = {
 
 export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn }: Props) {
   const router = useRouter();
+  // Keep event/photo form states isolated so each form can fail independently.
   const [eventError, setEventError] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [eventLoading, setEventLoading] = useState(false);
@@ -45,6 +46,7 @@ export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn 
 
     e.currentTarget.reset();
     setEventLoading(false);
+    // Refresh server-rendered vehicle detail data after successful mutation.
     router.refresh();
   }
 
@@ -54,10 +56,59 @@ export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn 
     setPhotoLoading(true);
 
     const form = new FormData(e.currentTarget);
+    const caption = String(form.get("caption") ?? "") || null;
+    const file = form.get("file");
+
+    if (!(file instanceof File)) {
+      setPhotoError("Select an image file first.");
+      setPhotoLoading(false);
+      return;
+    }
+
+    if (!file.type) {
+      setPhotoError("Unable to detect file type.");
+      setPhotoLoading(false);
+      return;
+    }
+
+    // Upload flow: request signed URL -> upload file directly -> finalize metadata in app DB.
+    const uploadSessionResponse = await fetch(`/api/vehicles/${vehicleId}/photos/upload-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+      }),
+    });
+
+    if (!uploadSessionResponse.ok) {
+      const result = await uploadSessionResponse.json().catch(() => null);
+      setPhotoError(result?.error ?? "Failed to initialize upload.");
+      setPhotoLoading(false);
+      return;
+    }
+
+    const uploadSession = (await uploadSessionResponse.json()) as {
+      uploadUrl: string;
+      storageKey: string;
+    };
+
+    const objectUploadResponse = await fetch(uploadSession.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+
+    if (!objectUploadResponse.ok) {
+      setPhotoError("File upload failed.");
+      setPhotoLoading(false);
+      return;
+    }
+
     const payload = {
-      url: String(form.get("url") ?? ""),
-      storageKey: String(form.get("storageKey") ?? "") || null,
-      caption: String(form.get("caption") ?? "") || null,
+      storageKey: uploadSession.storageKey,
+      caption,
     };
 
     const response = await fetch(`/api/vehicles/${vehicleId}/photos`, {
@@ -109,9 +160,14 @@ export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn 
       </form>
 
       <form onSubmit={handleCreatePhoto} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
-        <h3 className="text-sm font-semibold text-zinc-100">Add Photo Metadata</h3>
-        <input name="url" required placeholder="Photo URL" className="mt-3 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
-        <input name="storageKey" placeholder="Storage key (optional)" className="mt-3 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
+        <h3 className="text-sm font-semibold text-zinc-100">Upload Photo</h3>
+        <input
+          name="file"
+          type="file"
+          required
+          accept="image/jpeg,image/png,image/webp"
+          className="mt-3 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+        />
         <input name="caption" placeholder="Caption (optional)" className="mt-3 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
         {photoError ? <p className="mt-2 text-xs text-red-300">{photoError}</p> : null}
         <button type="submit" disabled={photoLoading} className="mt-3 rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-amber-300 disabled:opacity-60">

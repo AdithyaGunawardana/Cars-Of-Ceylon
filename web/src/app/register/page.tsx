@@ -21,6 +21,7 @@ export default function RegisterPage() {
       password: String(form.get("password") ?? ""),
     };
 
+    // Registration is server-validated and password hashing happens in the API route.
     const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -34,6 +35,7 @@ export default function RegisterPage() {
       return;
     }
 
+    // Redirect with a flag so login can show a success state.
     router.push("/login?registered=1");
   }
 

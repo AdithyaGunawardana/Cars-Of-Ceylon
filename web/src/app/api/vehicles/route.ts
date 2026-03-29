@@ -21,6 +21,7 @@ const listVehicleSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
 
+// Lists public vehicles with filters/pagination.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const parsed = listVehicleSchema.safeParse(Object.fromEntries(searchParams));
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
 
   const { manufacturer, model, year, search, page, pageSize } = parsed.data;
 
+  // Build dynamic filters so list/search behavior stays consistent for web and future mobile clients.
   const where = {
     visibility: "PUBLIC" as const,
     ...(manufacturer ? { manufacturer: { contains: manufacturer, mode: "insensitive" as const } } : {}),
@@ -46,6 +48,7 @@ export async function GET(request: Request) {
       : {}),
   };
 
+  // Fetch result page and total count together for efficient pagination metadata.
   const [items, total] = await Promise.all([
     prisma.vehicle.findMany({
       where,
@@ -75,6 +78,7 @@ export async function GET(request: Request) {
   });
 }
 
+// Creates a new vehicle record for the authenticated contributor.
 export async function POST(request: Request) {
   const session = await getAuthSession();
   if (!session?.user?.id) {
@@ -96,6 +100,7 @@ export async function POST(request: Request) {
       ...parsed.data,
       createdByUserId: session.user.id,
       events: {
+        // Every new vehicle starts with a CREATED event so timeline history is never empty.
         create: {
           userId: session.user.id,
           type: "CREATED",

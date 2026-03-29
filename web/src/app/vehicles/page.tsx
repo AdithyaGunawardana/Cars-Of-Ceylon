@@ -8,17 +8,20 @@ type SearchParams = {
   search?: string;
 };
 
+// Public vehicle archive with server-side filtering.
 export default async function VehiclesPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
+  // Normalize optional query params before building Prisma filters.
   const manufacturer = params.manufacturer?.trim() || undefined;
   const model = params.model?.trim() || undefined;
   const search = params.search?.trim() || undefined;
   const year = params.year ? Number(params.year) : undefined;
 
+  // Keep list filtering aligned with API search behavior.
   const where = {
     visibility: "PUBLIC" as const,
     ...(manufacturer ? { manufacturer: { contains: manufacturer, mode: "insensitive" as const } } : {}),

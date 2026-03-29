@@ -13,6 +13,7 @@ export default function Home() {
           for local development with PostgreSQL.
         </p>
 
+        {/* High-level capability cards for quick project orientation. */}
         <div className="grid gap-4 md:grid-cols-3">
           <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5">
             <h2 className="text-lg font-semibold">Vehicle Archive</h2>
@@ -28,6 +29,7 @@ export default function Home() {
           </article>
         </div>
 
+        {/* Visible stack summary matching current implementation choices. */}
         <div className="flex flex-wrap gap-3 text-sm">
           <span className="rounded-full border border-zinc-700 px-3 py-1">Next.js</span>
           <span className="rounded-full border border-zinc-700 px-3 py-1">PostgreSQL</span>

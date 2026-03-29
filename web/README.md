@@ -41,6 +41,8 @@ docker compose exec web npm run prisma:seed
 Open:
 
 - http://localhost:3000
+- MinIO API: http://localhost:9000
+- MinIO Console: http://localhost:9001 (minioadmin / minioadmin)
 
 ## Run Locally (Without Docker)
 
@@ -63,7 +65,8 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 - `POST /api/vehicles` (authenticated)
 - `GET /api/vehicles/:id`
 - `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
-- `POST /api/vehicles/:id/photos` (authenticated, owner/moderator/admin)
+- `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
+- `POST /api/vehicles/:id/photos` (authenticated, owner/moderator/admin; finalize by `storageKey`)
 
 ## Current Web Routes
 
@@ -79,3 +82,21 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 - Keep response shapes consistent and mobile-friendly.
 - Add or update API contracts before building cross-platform UI.
 - Use feature flags when a feature is not fully ready on both clients.
+
+## Upload Storage Configuration
+
+Set the following variables in `web/.env` for signed image uploads:
+
+- `UPLOAD_S3_ENDPOINT`
+- `UPLOAD_S3_REGION`
+- `UPLOAD_S3_BUCKET`
+- `UPLOAD_S3_ACCESS_KEY_ID`
+- `UPLOAD_S3_SECRET_ACCESS_KEY`
+- `UPLOAD_S3_PUBLIC_BASE_URL` (optional)
+
+Current upload limits:
+
+- Allowed types: `image/jpeg`, `image/png`, `image/webp`
+- Max size: 10 MB
+
+For Docker Compose, these variables are already configured to use the local MinIO bucket `cars-of-ceylon`.
