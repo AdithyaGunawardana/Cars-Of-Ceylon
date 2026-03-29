@@ -24,6 +24,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
     },
     report: {
+      count: vi.fn(),
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -43,6 +44,7 @@ function setupModerationFlowMocks() {
     .mockResolvedValueOnce({ user: { id: "u-moderator" } } as never);
 
   (prisma.vehicle.findUnique as any).mockResolvedValue({ id: "vehicle-1" });
+  (prisma.report.count as any).mockResolvedValue(0);
 
   (prisma.user.findUnique as any).mockImplementation(async (args: any) => {
     if (args.where.id === "u-moderator") {
