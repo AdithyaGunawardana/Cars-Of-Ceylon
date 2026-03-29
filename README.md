@@ -35,38 +35,46 @@ This prevents API drift and keeps behavior consistent across platforms.
 - Secure token-based mobile auth flow
 - Same moderation and audit rules as web
 
+## Mobile Scaffold Status
+
+- Baseline app scaffold is now available under `mobile/`
+- Initial screens: login + vehicles list/detail preview
+- API-first implementation aligned with shared web contracts
+
 ## Implemented Foundation
 
 - Project scaffolded under `web/`
 - Prisma domain models for:
-	- users and roles
-	- vehicles
-	- vehicle events (history timeline)
-	- vehicle photos
-	- follow relationships
-	- moderation reports
+  - users and roles
+  - vehicles
+  - vehicle events (history timeline)
+  - vehicle photos
+  - follow relationships
+  - moderation reports
 - Auth scaffolding:
-	- email/password credentials
-	- optional Google and Apple providers
+  - email/password credentials
+  - optional Google and Apple providers
 - API routes:
-	- `POST /api/auth/register`
-	- `GET /api/vehicles`
-	- `POST /api/vehicles` (authenticated)
-	- `GET /api/vehicles/:id`
-	- `PATCH /api/vehicles/:id` (authenticated, owner/moderator/admin)
-	- `DELETE /api/vehicles/:id` (authenticated, owner/moderator/admin)
-	- `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
-	- `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
-	- `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
-	- `POST /api/reports` (authenticated; create moderation report)
-	- `GET /api/reports` (moderator/admin report queue)
-	- `PATCH /api/reports/:id` (moderator/admin status update)
+  - `POST /api/auth/register`
+  - `GET /api/vehicles`
+  - `POST /api/vehicles` (authenticated)
+  - `GET /api/vehicles/:id`
+  - `PATCH /api/vehicles/:id` (authenticated, owner/moderator/admin)
+  - `DELETE /api/vehicles/:id` (authenticated, owner/moderator/admin)
+  - `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
+  - `PATCH /api/vehicles/:id/events/:eventId` (authenticated, owner/moderator/admin)
+  - `DELETE /api/vehicles/:id/events/:eventId` (authenticated, owner/moderator/admin)
+  - `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
+  - `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
+  - `POST /api/reports` (authenticated; create moderation report)
+  - `GET /api/reports` (moderator/admin report queue)
+  - `PATCH /api/reports/:id` (moderator/admin status update)
 - Web routes:
-	- `/vehicles` (list and filter)
-	- `/vehicles/[id]` (detail)
-	- `/vehicles/new` (authenticated create form)
-	- `/login`
-	- `/register`
+  - `/vehicles` (list and filter)
+  - `/vehicles/[id]` (detail)
+  - `/vehicles/new` (authenticated create form)
+  - `/login`
+  - `/register`
 
 ## Parallel Roadmap (Web + Mobile)
 
@@ -84,19 +92,19 @@ This prevents API drift and keeps behavior consistent across platforms.
 docker compose up --build
 ```
 
-2. In another shell, run the first migration inside app container:
+1. In another shell, run the first migration inside app container:
 
 ```bash
 docker compose exec web npx prisma migrate dev --name init
 docker compose exec web npm run prisma:seed
 ```
 
-3. Open:
+1. Open:
 
-- App: http://localhost:3000
+- App: <http://localhost:3000>
 - PostgreSQL: localhost:5432
-- MinIO S3 API: http://localhost:9000
-- MinIO Console: http://localhost:9001
+- MinIO S3 API: <http://localhost:9000>
+- MinIO Console: <http://localhost:9001>
 
 ## Local (Non-Docker) Run
 
@@ -143,6 +151,10 @@ Upload constraints currently enforced server-side:
 ## Sprint 4 Tracking
 
 - Use `docs/sprint-4-checklist.md` for moderation report APIs and moderator queue acceptance.
+
+## Sprint 5 Tracking
+
+- Use `docs/sprint-5-checklist.md` for timeline event management expansion, photo UX resilience, moderation hardening, and mobile baseline acceptance.
 
 ## Shared Contract Modules
 
