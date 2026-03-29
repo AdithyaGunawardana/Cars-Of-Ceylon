@@ -49,6 +49,25 @@ export const createVehicleEventRequestSchema = z.object({
   sourceUrl: z.string().url().max(500).optional().nullable(),
 });
 
+// Contract for route params targeting a specific timeline event.
+export const vehicleEventParamsSchema = z.object({
+  id: z.string().min(1),
+  eventId: z.string().min(1),
+});
+
+// Contract for updating timeline events on vehicles.
+export const updateVehicleEventRequestSchema = z
+  .object({
+    type: z.enum(["CREATED", "OWNERSHIP_CHANGE", "SERVICE", "ACCIDENT", "MODIFICATION", "INSPECTION", "NOTE"]).optional(),
+    title: z.string().trim().min(2).max(140).optional(),
+    details: z.string().trim().max(5000).nullable().optional(),
+    occurredAt: z.string().datetime().nullable().optional(),
+    sourceUrl: z.string().url().max(500).nullable().optional(),
+  })
+  .refine((payload) => Object.keys(payload).length > 0, {
+    message: "At least one field is required",
+  });
+
 // Keep success payloads open for backward-compatible field additions.
 export const vehicleListSuccessSchema = z.object({
   items: z.array(z.object({ id: z.string().min(1) }).passthrough()),
@@ -73,5 +92,9 @@ export const updateVehicleSuccessSchema = z.object({
 });
 
 export const createVehicleEventSuccessSchema = z.object({
+  event: z.object({ id: z.string().min(1) }).passthrough(),
+});
+
+export const updateVehicleEventSuccessSchema = z.object({
   event: z.object({ id: z.string().min(1) }).passthrough(),
 });

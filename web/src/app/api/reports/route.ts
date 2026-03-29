@@ -3,6 +3,9 @@ import { getAuthSession } from "@/auth";
 import { listReportsQuerySchema, createReportRequestSchema } from "@/lib/contracts/report-contracts";
 import { prisma } from "@/lib/prisma";
 
+const REPORT_RATE_LIMIT_WINDOW_MINUTES = 15;
+const REPORT_RATE_LIMIT_MAX_REQUESTS = 5;
+
 // Allows authenticated users to file reports and moderators to review report queues.
 export async function GET(request: Request) {
   const session = await getAuthSession();
@@ -93,6 +96,23 @@ export async function POST(request: Request) {
 
   if (!vehicle) {
     return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
+  }
+
+  const rateLimitWindowStart = new Date(Date.now() - REPORT_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000);
+  const recentReportCount = await prisma.report.count({
+    where: {
+      createdById: session.user.id,
+      createdAt: {
+        gte: rateLimitWindowStart,
+      },
+    },
+  });
+
+  if (recentReportCount >= REPORT_RATE_LIMIT_MAX_REQUESTS) {
+    return NextResponse.json(
+      { error: "Too many reports. Please wait before submitting again." },
+      { status: 429 },
+    );
   }
 
   const report = await prisma.report.create({

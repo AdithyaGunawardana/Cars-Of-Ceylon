@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 
 type Props = {
   vehicleId: string;
@@ -16,6 +16,9 @@ export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn 
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [eventLoading, setEventLoading] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoStatus, setPhotoStatus] = useState<"idle" | "initializing" | "uploading" | "finalizing">("idle");
+  const [retryPhotoPayload, setRetryPhotoPayload] = useState<{ file: File; caption: string | null } | null>(null);
+  const photoAbortControllerRef = useRef<AbortController | null>(null);
 
   async function handleCreateEvent(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -50,10 +53,97 @@ export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn 
     router.refresh();
   }
 
+  async function executePhotoUpload(options: {
+    file: File;
+    caption: string | null;
+    onSuccess?: () => void;
+  }) {
+    setPhotoError(null);
+    setPhotoLoading(true);
+    setPhotoStatus("initializing");
+
+    const controller = new AbortController();
+    photoAbortControllerRef.current = controller;
+
+    const { file, caption } = options;
+
+    try {
+      // Upload flow: request signed URL -> upload file directly -> finalize metadata in app DB.
+      const uploadSessionResponse = await fetch(`/api/vehicles/${vehicleId}/photos/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+        }),
+      });
+
+      if (!uploadSessionResponse.ok) {
+        const result = await uploadSessionResponse.json().catch(() => null);
+        setRetryPhotoPayload({ file, caption });
+        setPhotoError(result?.error ?? "Failed to initialize upload. You can retry.");
+        return;
+      }
+
+      const uploadSession = (await uploadSessionResponse.json()) as {
+        uploadUrl: string;
+        storageKey: string;
+      };
+
+      setPhotoStatus("uploading");
+      const objectUploadResponse = await fetch(uploadSession.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        signal: controller.signal,
+        body: file,
+      });
+
+      if (!objectUploadResponse.ok) {
+        setRetryPhotoPayload({ file, caption });
+        setPhotoError("File upload failed. You can retry.");
+        return;
+      }
+
+      setPhotoStatus("finalizing");
+      const response = await fetch(`/api/vehicles/${vehicleId}/photos/finalize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          storageKey: uploadSession.storageKey,
+          caption,
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        setRetryPhotoPayload({ file, caption });
+        setPhotoError(result?.error ?? "Failed to finalize photo metadata. You can retry.");
+        return;
+      }
+
+      setRetryPhotoPayload(null);
+      options.onSuccess?.();
+      router.refresh();
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        setPhotoError("Photo upload canceled.");
+      } else {
+        setRetryPhotoPayload({ file, caption });
+        setPhotoError("Unexpected upload error. You can retry.");
+      }
+    } finally {
+      setPhotoLoading(false);
+      setPhotoStatus("idle");
+      photoAbortControllerRef.current = null;
+    }
+  }
+
   async function handleCreatePhoto(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setPhotoError(null);
-    setPhotoLoading(true);
 
     const form = new FormData(e.currentTarget);
     const caption = String(form.get("caption") ?? "") || null;
@@ -61,72 +151,25 @@ export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn 
 
     if (!(file instanceof File)) {
       setPhotoError("Select an image file first.");
-      setPhotoLoading(false);
       return;
     }
 
     if (!file.type) {
       setPhotoError("Unable to detect file type.");
-      setPhotoLoading(false);
       return;
     }
 
-    // Upload flow: request signed URL -> upload file directly -> finalize metadata in app DB.
-    const uploadSessionResponse = await fetch(`/api/vehicles/${vehicleId}/photos/upload-url`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-      }),
-    });
-
-    if (!uploadSessionResponse.ok) {
-      const result = await uploadSessionResponse.json().catch(() => null);
-      setPhotoError(result?.error ?? "Failed to initialize upload.");
-      setPhotoLoading(false);
-      return;
-    }
-
-    const uploadSession = (await uploadSessionResponse.json()) as {
-      uploadUrl: string;
-      storageKey: string;
-    };
-
-    const objectUploadResponse = await fetch(uploadSession.uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
-    });
-
-    if (!objectUploadResponse.ok) {
-      setPhotoError("File upload failed.");
-      setPhotoLoading(false);
-      return;
-    }
-
-    const payload = {
-      storageKey: uploadSession.storageKey,
+    await executePhotoUpload({
+      file,
       caption,
-    };
-
-    const response = await fetch(`/api/vehicles/${vehicleId}/photos/finalize`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      onSuccess: () => {
+        e.currentTarget.reset();
+      },
     });
+  }
 
-    if (!response.ok) {
-      const result = await response.json().catch(() => null);
-      setPhotoError(result?.error ?? "Failed to add photo.");
-      setPhotoLoading(false);
-      return;
-    }
-
-    e.currentTarget.reset();
-    setPhotoLoading(false);
-    router.refresh();
+  function handleCancelPhotoUpload() {
+    photoAbortControllerRef.current?.abort();
   }
 
   if (!isSignedIn) {
@@ -170,9 +213,42 @@ export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn 
         />
         <input name="caption" placeholder="Caption (optional)" className="mt-3 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100" />
         {photoError ? <p className="mt-2 text-xs text-red-300">{photoError}</p> : null}
-        <button type="submit" disabled={photoLoading} className="mt-3 rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-amber-300 disabled:opacity-60">
-          {photoLoading ? "Saving..." : "Save Photo"}
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="submit" disabled={photoLoading} className="rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-amber-300 disabled:opacity-60">
+            {photoLoading
+              ? photoStatus === "initializing"
+                ? "Preparing..."
+                : photoStatus === "uploading"
+                  ? "Uploading..."
+                  : "Finalizing..."
+              : "Save Photo"}
+          </button>
+
+          {photoLoading ? (
+            <button
+              type="button"
+              onClick={handleCancelPhotoUpload}
+              className="rounded-md border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-zinc-900"
+            >
+              Cancel Upload
+            </button>
+          ) : null}
+
+          {!photoLoading && retryPhotoPayload ? (
+            <button
+              type="button"
+              onClick={() =>
+                executePhotoUpload({
+                  file: retryPhotoPayload.file,
+                  caption: retryPhotoPayload.caption,
+                })
+              }
+              className="rounded-md border border-amber-700 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-950"
+            >
+              Retry Last Upload
+            </button>
+          ) : null}
+        </div>
       </form>
     </div>
   );
