@@ -87,29 +87,30 @@ export function ModerationReportsBoard({ reports }: Props) {
             <p className="text-xs text-zinc-400">Last moderated by {report.moderatedBy?.name ?? "Not yet moderated"}</p>
 
             <div className="mt-3 flex flex-wrap gap-2">
+              {/* Disable a button when report already has that status to avoid no-op writes. */}
               <button
                 type="button"
-                disabled={updatingId === report.id}
+                disabled={updatingId === report.id || report.status === "REVIEWING"}
                 onClick={() => handleStatusChange(report.id, "REVIEWING")}
                 className="rounded-md border border-sky-700 px-3 py-1.5 text-xs font-semibold text-sky-200 hover:bg-sky-950 disabled:opacity-60"
               >
-                Mark Reviewing
+                {report.status === "REVIEWING" ? "Already Reviewing" : "Mark Reviewing"}
               </button>
               <button
                 type="button"
-                disabled={updatingId === report.id}
+                disabled={updatingId === report.id || report.status === "RESOLVED"}
                 onClick={() => handleStatusChange(report.id, "RESOLVED")}
                 className="rounded-md border border-emerald-700 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-950 disabled:opacity-60"
               >
-                Resolve
+                {report.status === "RESOLVED" ? "Already Resolved" : "Resolve"}
               </button>
               <button
                 type="button"
-                disabled={updatingId === report.id}
+                disabled={updatingId === report.id || report.status === "REJECTED"}
                 onClick={() => handleStatusChange(report.id, "REJECTED")}
                 className="rounded-md border border-amber-700 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-950 disabled:opacity-60"
               >
-                Reject
+                {report.status === "REJECTED" ? "Already Rejected" : "Reject"}
               </button>
             </div>
           </article>

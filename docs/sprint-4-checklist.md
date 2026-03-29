@@ -33,6 +33,7 @@
 - [x] Report route tests cover auth, validation, and success paths
 - [x] Report update route tests cover auth, permission, not-found, and success
 - [x] End-to-end moderation flow test (create report -> resolve) in integration environment
+- [x] End-to-end moderation flow test (create report -> reject) in integration environment
 - [x] Vehicle detail route tests cover GET privacy, PATCH permissions/conflicts, and DELETE permissions
 
 ## Verification Commands
