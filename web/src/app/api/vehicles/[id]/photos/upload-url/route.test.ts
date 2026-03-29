@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { photoApiErrorSchema, photoUploadUrlSuccessSchema } from "@/lib/contracts/photo-contracts";
 
 // Mock auth so each test controls authenticated vs unauthenticated behavior.
 vi.mock("@/auth", () => ({
@@ -49,7 +50,9 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ error: "Unauthorized" });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("Unauthorized");
   });
 
   it("returns 400 for unsupported file type", async () => {
@@ -64,7 +67,9 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Unsupported file type" });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("Unsupported file type");
   });
 
   it("returns 400 when file size exceeds max bytes", async () => {
@@ -79,7 +84,9 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "File too large. Max is 10485760 bytes." });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("File too large. Max is 10485760 bytes.");
   });
 
   it("returns 403 when user is not allowed to contribute", async () => {
@@ -96,7 +103,9 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(403);
-    expect(await response.json()).toEqual({ error: "Forbidden" });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("Forbidden");
   });
 
   it("returns 404 when vehicle does not exist", async () => {
@@ -113,7 +122,9 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ error: "Vehicle not found" });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("Vehicle not found");
   });
 
   it("returns signed upload payload for authorized contributor", async () => {
@@ -142,6 +153,7 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
+    expect(photoUploadUrlSuccessSchema.safeParse(payload).success).toBe(true);
     expect(payload.uploadUrl).toBe("http://localhost:9000/signed-put-url");
     expect(payload.publicUrl).toBe("http://localhost:9000/cars-of-ceylon/vehicles/v1/file.png");
     expect(payload.storageKey).toContain("vehicles/v1/");

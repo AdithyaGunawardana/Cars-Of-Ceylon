@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { photoApiErrorSchema, photoFinalizeSuccessSchema } from "@/lib/contracts/photo-contracts";
 
 // Mock auth so tests can exercise access control deterministically.
 vi.mock("@/auth", () => ({
@@ -41,7 +42,9 @@ describe("POST /api/vehicles/:id/photos/finalize", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ error: "Unauthorized" });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("Unauthorized");
   });
 
   it("returns 503 when upload storage is not configured", async () => {
@@ -59,9 +62,9 @@ describe("POST /api/vehicles/:id/photos/finalize", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      error: "Upload storage is not configured. Set UPLOAD_S3_* environment variables.",
-    });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("Upload storage is not configured. Set UPLOAD_S3_* environment variables.");
   });
 
   it("returns 400 for invalid photo payload", async () => {
@@ -77,6 +80,7 @@ describe("POST /api/vehicles/:id/photos/finalize", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(400);
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
     expect(payload.error).toBe("Invalid photo data");
   });
 
@@ -94,7 +98,9 @@ describe("POST /api/vehicles/:id/photos/finalize", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(403);
-    expect(await response.json()).toEqual({ error: "Forbidden" });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("Forbidden");
   });
 
   it("returns 404 when vehicle does not exist", async () => {
@@ -111,7 +117,9 @@ describe("POST /api/vehicles/:id/photos/finalize", () => {
     const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
 
     expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ error: "Vehicle not found" });
+    const payload = await response.json();
+    expect(photoApiErrorSchema.safeParse(payload).success).toBe(true);
+    expect(payload.error).toBe("Vehicle not found");
   });
 
   it("creates photo metadata for authorized contributor", async () => {
@@ -140,6 +148,7 @@ describe("POST /api/vehicles/:id/photos/finalize", () => {
     const payload = await response.json();
 
     expect(response.status).toBe(201);
+    expect(photoFinalizeSuccessSchema.safeParse(payload).success).toBe(true);
     expect(payload.photo).toEqual({ id: "p1" });
     expect(prisma.vehiclePhoto.create).toHaveBeenCalledWith({
       data: {

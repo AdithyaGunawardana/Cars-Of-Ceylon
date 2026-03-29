@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthSession } from "@/auth";
 import { VehicleContributionForms } from "@/components/vehicle-contribution-forms";
+import { VehicleManagementForm } from "@/components/vehicle-management-form";
+import { VehicleReportForm } from "@/components/vehicle-report-form";
 import { prisma } from "@/lib/prisma";
 
 export default async function VehicleDetailPage({
@@ -51,6 +53,9 @@ export default async function VehicleDetailPage({
     currentUser &&
       (currentUser.id === vehicle.createdByUserId || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN"),
   );
+
+  // Same policy as contribution actions: owner/moderator/admin can manage metadata.
+  const canManageVehicle = canContribute;
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 md:px-10">
@@ -116,6 +121,23 @@ export default async function VehicleDetailPage({
           </ul>
         )}
       </section>
+
+      {canManageVehicle ? (
+        <VehicleManagementForm
+          vehicleId={vehicle.id}
+          initialValues={{
+            uniqueIdentifier: vehicle.uniqueIdentifier,
+            licensePlate: vehicle.licensePlate,
+            manufacturer: vehicle.manufacturer,
+            model: vehicle.model,
+            year: vehicle.year,
+            description: vehicle.description,
+            visibility: vehicle.visibility,
+          }}
+        />
+      ) : null}
+
+      <VehicleReportForm vehicleId={vehicle.id} isSignedIn={Boolean(session?.user?.id)} />
     </main>
   );
 }
