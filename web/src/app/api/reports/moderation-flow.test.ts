@@ -37,17 +37,55 @@ import { prisma } from "@/lib/prisma";
 import { POST as createReport } from "./route";
 import { PATCH as updateReport } from "./[id]/route";
 
+type UserFindUniqueArgs = { where: { id: string } };
+type ReportCreateArgs = {
+  data: {
+    vehicleId?: string;
+    createdById?: string;
+    reason?: string;
+    status?: "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED";
+  };
+};
+type ReportFindUniqueArgs = { where: { id: string } };
+type ReportUpdateArgs = {
+  where: { id: string };
+  data: {
+    status?: "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED";
+    moderatedById?: string;
+  };
+};
+
+type ResolvedValueMock<TValue> = {
+  mockResolvedValue: (value: TValue) => void;
+};
+
+type ImplementationMock<TArgs, TResult> = {
+  mockImplementation: (fn: (args: TArgs) => Promise<TResult>) => void;
+};
+
 function setupModerationFlowMocks() {
   // Reporter session is consumed by POST, moderator session is consumed by PATCH.
   vi.mocked(getAuthSession)
     .mockResolvedValueOnce({ user: { id: "u-reporter" } } as never)
     .mockResolvedValueOnce({ user: { id: "u-moderator" } } as never);
 
-  (prisma.vehicle.findUnique as any).mockResolvedValue({ id: "vehicle-1" });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (prisma.report.count as any).mockResolvedValue(0);
+  const vehicleFindUniqueMock = prisma.vehicle.findUnique as unknown as ResolvedValueMock<{ id: string }>;
+  const reportCountMock = prisma.report.count as unknown as ResolvedValueMock<number>;
+  const userFindUniqueMock = prisma.user.findUnique as unknown as ImplementationMock<
+    UserFindUniqueArgs,
+    { id: string; role: "MODERATOR" | "USER" }
+  >;
+  const reportCreateMock = prisma.report.create as unknown as ImplementationMock<ReportCreateArgs, { id: string }>;
+  const reportFindUniqueMock = prisma.report.findUnique as unknown as ImplementationMock<
+    ReportFindUniqueArgs,
+    { id: string } | null
+  >;
+  const reportUpdateMock = prisma.report.update as unknown as ImplementationMock<ReportUpdateArgs, { id: string } | null>;
 
-  (prisma.user.findUnique as any).mockImplementation(async (args: any) => {
+  vehicleFindUniqueMock.mockResolvedValue({ id: "vehicle-1" });
+  reportCountMock.mockResolvedValue(0);
+
+  userFindUniqueMock.mockImplementation(async (args) => {
     if (args.where.id === "u-moderator") {
       return { id: "u-moderator", role: "MODERATOR" };
     }
@@ -55,7 +93,7 @@ function setupModerationFlowMocks() {
     return { id: "u-reporter", role: "USER" };
   });
 
-  (prisma.report.create as any).mockImplementation(async (args: any) => {
+  reportCreateMock.mockImplementation(async (args) => {
     const next = {
       id: "report-1",
       vehicleId: String(args.data.vehicleId ?? ""),
@@ -68,12 +106,12 @@ function setupModerationFlowMocks() {
     return { id: next.id };
   });
 
-  (prisma.report.findUnique as any).mockImplementation(async (args: any) => {
+  reportFindUniqueMock.mockImplementation(async (args) => {
     const report = reportsStore.find((item) => item.id === args.where.id);
     return report ? { id: report.id } : null;
   });
 
-  (prisma.report.update as any).mockImplementation(async (args: any) => {
+  reportUpdateMock.mockImplementation(async (args) => {
     const report = reportsStore.find((item) => item.id === args.where.id);
     if (!report) {
       return null;
