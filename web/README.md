@@ -84,6 +84,8 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 
 The global top navigation now links to Moderation for moderator/admin users only.
 
+Vehicle detail now includes owner/moderator/admin controls to update metadata and delete entries.
+
 ## Development Guidelines
 
 - Keep validation and business rules server-side.

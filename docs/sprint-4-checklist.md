@@ -6,6 +6,7 @@
 - Moderator report queue endpoint
 - Moderator report status update endpoint
 - Web moderation queue interface and vehicle report form
+- Vehicle metadata edit/delete UI on detail page
 
 ## API Acceptance
 
@@ -24,6 +25,8 @@
 - [x] Moderation page lists reports with status and context
 - [x] Moderators can transition status to reviewing/resolved/rejected
 - [x] Moderation route is linked from primary navigation
+- [x] Vehicle detail allows owner/moderator/admin to edit metadata
+- [x] Vehicle detail allows owner/moderator/admin to delete vehicle
 
 ## Test Acceptance
 
