@@ -111,7 +111,7 @@ export function VehicleContributionForms({ vehicleId, canContribute, isSignedIn 
       caption,
     };
 
-    const response = await fetch(`/api/vehicles/${vehicleId}/photos`, {
+    const response = await fetch(`/api/vehicles/${vehicleId}/photos/finalize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

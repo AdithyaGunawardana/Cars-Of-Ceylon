@@ -10,7 +10,7 @@
 ## API Acceptance
 
 - [ ] `POST /api/vehicles/:id/events` requires authentication
-- [ ] `POST /api/vehicles/:id/photos` requires authentication
+- [ ] `POST /api/vehicles/:id/photos/finalize` requires authentication
 - [ ] Event and photo creation are blocked for unauthorized contributors
 - [ ] Validation errors return HTTP 400 with usable error payloads
 
@@ -33,5 +33,4 @@ npm run build
 
 ## Notes
 
-- This sprint intentionally uses photo metadata input (URL + caption) before file upload pipeline hardening.
-- Signed upload URL flow can be implemented in the next sprint.
+- Sprint 2 originally introduced photo metadata creation; Sprint 3 supersedes it with signed uploads + finalize endpoint.

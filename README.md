@@ -55,7 +55,7 @@ This prevents API drift and keeps behavior consistent across platforms.
 	- `GET /api/vehicles/:id`
 	- `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
 	- `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
-	- `POST /api/vehicles/:id/photos` (authenticated, owner/moderator/admin; finalize by `storageKey`)
+	- `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
 - Web routes:
 	- `/vehicles` (list and filter)
 	- `/vehicles/[id]` (detail)

@@ -12,7 +12,7 @@
 - [x] `POST /api/vehicles/:id/photos/upload-url` requires authentication
 - [x] Upload URL route validates type and size limits
 - [x] Upload URL route enforces owner/moderator/admin permissions
-- [x] `POST /api/vehicles/:id/photos` finalizes metadata using `storageKey`
+- [x] `POST /api/vehicles/:id/photos/finalize` finalizes metadata using `storageKey`
 - [x] Both endpoints return clear 4xx/5xx errors for invalid or missing storage config
 
 ## Web Acceptance
