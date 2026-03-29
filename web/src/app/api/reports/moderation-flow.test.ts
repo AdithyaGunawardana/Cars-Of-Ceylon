@@ -24,6 +24,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
     },
     report: {
+      count: vi.fn(),
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -44,6 +45,7 @@ function setupModerationFlowMocks() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (prisma.vehicle.findUnique as any).mockResolvedValue({ id: "vehicle-1" });
+  (prisma.report.count as any).mockResolvedValue(0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (prisma.user.findUnique as any).mockImplementation(async (args: any) => {
