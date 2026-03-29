@@ -10,6 +10,7 @@ type ReportItem = {
   reason: string;
   status: ReportStatus;
   createdAt: string | Date;
+  updatedAt: string | Date;
   vehicle: {
     id: string;
     uniqueIdentifier: string;
@@ -85,6 +86,9 @@ export function ModerationReportsBoard({ reports }: Props) {
               Reported by {report.createdBy.name ?? "Unknown"} • {new Date(report.createdAt).toLocaleString()}
             </p>
             <p className="text-xs text-zinc-400">Last moderated by {report.moderatedBy?.name ?? "Not yet moderated"}</p>
+            {report.moderatedBy ? (
+              <p className="text-xs text-zinc-400">Last moderation update: {new Date(report.updatedAt).toLocaleString()}</p>
+            ) : null}
 
             <div className="mt-3 flex flex-wrap gap-2">
               {/* Disable a button when report already has that status to avoid no-op writes. */}

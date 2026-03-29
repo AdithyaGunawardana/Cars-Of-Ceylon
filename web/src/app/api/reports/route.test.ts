@@ -121,9 +121,29 @@ describe("/api/reports route", () => {
       expect(payload.error).toBe("Vehicle not found");
     });
 
+    it("returns 429 when report rate limit is exceeded", async () => {
+      vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+      vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1" } as never);
+      vi.mocked(prisma.report.count).mockResolvedValue(5 as never);
+
+      const request = new Request("http://localhost/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vehicleId: "v1", reason: "Timeline has incorrect ownership period." }),
+      });
+
+      const response = await POST(request);
+      const payload = await response.json();
+
+      expect(response.status).toBe(429);
+      expect(apiErrorSchema.safeParse(payload).success).toBe(true);
+      expect(payload.error).toBe("Too many reports. Please wait before submitting again.");
+    });
+
     it("creates a report for authenticated users", async () => {
       vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
       vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1" } as never);
+      vi.mocked(prisma.report.count).mockResolvedValue(0 as never);
       vi.mocked(prisma.report.create).mockResolvedValue({ id: "r1" } as never);
 
       const request = new Request("http://localhost/api/reports", {

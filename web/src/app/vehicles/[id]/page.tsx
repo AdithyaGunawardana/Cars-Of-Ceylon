@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthSession } from "@/auth";
 import { VehicleContributionForms } from "@/components/vehicle-contribution-forms";
+import { VehicleEventsBoard } from "@/components/vehicle-events-board";
 import { VehicleManagementForm } from "@/components/vehicle-management-form";
 import { VehicleReportForm } from "@/components/vehicle-report-form";
 import { prisma } from "@/lib/prisma";
@@ -91,18 +92,8 @@ export default async function VehicleDetailPage({
             isSignedIn={Boolean(session?.user?.id)}
           />
         </div>
-        <div className="mt-4 space-y-3">
-          {vehicle.events.length === 0 ? <p className="text-sm text-zinc-300">No events yet.</p> : null}
-
-          {vehicle.events.map((event) => (
-            <article key={event.id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4">
-              <p className="text-sm font-semibold text-zinc-100">{event.title}</p>
-              <p className="text-xs text-zinc-400">
-                {event.type} • {new Date(event.createdAt).toLocaleString()}
-              </p>
-              <p className="mt-2 text-sm text-zinc-300">{event.details ?? "No details provided."}</p>
-            </article>
-          ))}
+        <div className="mt-4">
+          <VehicleEventsBoard vehicleId={vehicle.id} events={vehicle.events} canManageEvents={canContribute} />
         </div>
       </section>
 
