@@ -27,6 +27,7 @@
 ```bash
 cd web
 npm run lint
+npm run test
 npm run build
 ```
 
@@ -35,3 +36,4 @@ npm run build
 - Storage credentials and endpoint are required for upload routes.
 - Current limits: JPEG/PNG/WebP, max 10 MB.
 - This sprint enables backend-safe uploads for both web and future mobile clients.
+- Web CI now runs lint, tests, and build on push/PR changes under `web/`.

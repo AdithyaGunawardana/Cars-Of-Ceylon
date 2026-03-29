@@ -2,20 +2,10 @@ import { randomUUID } from "crypto";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getAuthSession } from "@/auth";
+import { photoUploadUrlRequestSchema, photoVehicleParamsSchema } from "@/lib/contracts/photo-contracts";
 import { prisma } from "@/lib/prisma";
 import { buildObjectUrl, getUploadStorageConfig, uploadRules } from "@/lib/upload-config";
-
-const paramsSchema = z.object({
-  id: z.string().min(1),
-});
-
-const requestSchema = z.object({
-  fileName: z.string().trim().min(1).max(200),
-  fileType: z.string().trim().min(1).max(100),
-  fileSize: z.number().int().min(1),
-});
 
 // Issues a short-lived signed URL so clients can upload directly to object storage.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -25,13 +15,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
 
   const params = await context.params;
-  const parsedParams = paramsSchema.safeParse(params);
+  const parsedParams = photoVehicleParamsSchema.safeParse(params);
   if (!parsedParams.success) {
     return NextResponse.json({ error: "Invalid vehicle id" }, { status: 400 });
   }
 
   const payload = await request.json().catch(() => null);
-  const parsedBody = requestSchema.safeParse(payload);
+  const parsedBody = photoUploadUrlRequestSchema.safeParse(payload);
   if (!parsedBody.success) {
     return NextResponse.json({ error: "Invalid upload request", details: parsedBody.error.flatten() }, { status: 400 });
   }

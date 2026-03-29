@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getAuthSession } from "@/auth";
+import { photoFinalizeRequestSchema, photoVehicleParamsSchema } from "@/lib/contracts/photo-contracts";
 import { prisma } from "@/lib/prisma";
 import { buildObjectUrl, getUploadStorageConfig } from "@/lib/upload-config";
-
-const paramsSchema = z.object({
-  id: z.string().min(1),
-});
-
-const createPhotoSchema = z.object({
-  storageKey: z.string().trim().min(1).max(512),
-  caption: z.string().trim().max(500).optional().nullable(),
-});
 
 // Finalizes an uploaded object by writing photo metadata to the database.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -21,13 +12,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
 
   const params = await context.params;
-  const parsedParams = paramsSchema.safeParse(params);
+  const parsedParams = photoVehicleParamsSchema.safeParse(params);
   if (!parsedParams.success) {
     return NextResponse.json({ error: "Invalid vehicle id" }, { status: 400 });
   }
 
   const json = await request.json().catch(() => null);
-  const parsedBody = createPhotoSchema.safeParse(json);
+  const parsedBody = photoFinalizeRequestSchema.safeParse(json);
   if (!parsedBody.success) {
     return NextResponse.json({ error: "Invalid photo data", details: parsedBody.error.flatten() }, { status: 400 });
   }

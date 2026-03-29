@@ -1,30 +1,12 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getAuthSession } from "@/auth";
+import { createVehicleRequestSchema, vehicleListQuerySchema } from "@/lib/contracts/vehicle-contracts";
 import { prisma } from "@/lib/prisma";
-
-const createVehicleSchema = z.object({
-  uniqueIdentifier: z.string().trim().min(2).max(40),
-  licensePlate: z.string().trim().min(2).max(20).optional().nullable(),
-  manufacturer: z.string().trim().min(2).max(80),
-  model: z.string().trim().min(1).max(80),
-  year: z.number().int().min(1886).max(2100),
-  description: z.string().trim().max(5000).optional().nullable(),
-});
-
-const listVehicleSchema = z.object({
-  manufacturer: z.string().trim().min(1).max(80).optional(),
-  model: z.string().trim().min(1).max(80).optional(),
-  year: z.coerce.number().int().min(1886).max(2100).optional(),
-  search: z.string().trim().min(1).max(80).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
-});
 
 // Lists public vehicles with filters/pagination.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const parsed = listVehicleSchema.safeParse(Object.fromEntries(searchParams));
+  const parsed = vehicleListQuerySchema.safeParse(Object.fromEntries(searchParams));
 
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
@@ -86,7 +68,7 @@ export async function POST(request: Request) {
   }
 
   const json = await request.json().catch(() => null);
-  const parsed = createVehicleSchema.safeParse(json);
+  const parsed = createVehicleRequestSchema.safeParse(json);
 
   if (!parsed.success) {
     return NextResponse.json(

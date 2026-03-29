@@ -56,6 +56,9 @@ This prevents API drift and keeps behavior consistent across platforms.
 	- `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
 	- `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
 	- `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
+	- `POST /api/reports` (authenticated; create moderation report)
+	- `GET /api/reports` (moderator/admin report queue)
+	- `PATCH /api/reports/:id` (moderator/admin status update)
 - Web routes:
 	- `/vehicles` (list and filter)
 	- `/vehicles/[id]` (detail)
@@ -134,3 +137,13 @@ Upload constraints currently enforced server-side:
 ## Sprint 3 Tracking
 
 - Use `docs/sprint-3-checklist.md` for signed upload flow and photo finalization acceptance.
+
+## Shared Contract Modules
+
+For cross-platform API stability, request/response contracts are centralized in:
+
+- `web/src/lib/contracts/api-contracts.ts`
+- `web/src/lib/contracts/vehicle-contracts.ts`
+- `web/src/lib/contracts/photo-contracts.ts`
+
+Web route handlers and API tests should import these directly so mobile can reuse the same payload expectations.

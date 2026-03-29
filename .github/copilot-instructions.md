@@ -65,4 +65,4 @@ Registered users can add vehicles.
 Always:
 -   Ask permission before adding new features or generating code
 -   Use comments to clarify purpose
--   Explain what the code does (briefly)
+-   Explain what the code does and how it fits into the overall project
