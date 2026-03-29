@@ -24,6 +24,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
     },
     report: {
+      count: vi.fn(),
       create: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -42,10 +43,10 @@ function setupModerationFlowMocks() {
     .mockResolvedValueOnce({ user: { id: "u-reporter" } } as never)
     .mockResolvedValueOnce({ user: { id: "u-moderator" } } as never);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (prisma.vehicle.findUnique as any).mockResolvedValue({ id: "vehicle-1" });
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (prisma.report.count as any).mockResolvedValue(0);
+
   (prisma.user.findUnique as any).mockImplementation(async (args: any) => {
     if (args.where.id === "u-moderator") {
       return { id: "u-moderator", role: "MODERATOR" };
@@ -54,7 +55,6 @@ function setupModerationFlowMocks() {
     return { id: "u-reporter", role: "USER" };
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (prisma.report.create as any).mockImplementation(async (args: any) => {
     const next = {
       id: "report-1",
@@ -68,13 +68,11 @@ function setupModerationFlowMocks() {
     return { id: next.id };
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (prisma.report.findUnique as any).mockImplementation(async (args: any) => {
     const report = reportsStore.find((item) => item.id === args.where.id);
     return report ? { id: report.id } : null;
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (prisma.report.update as any).mockImplementation(async (args: any) => {
     const report = reportsStore.find((item) => item.id === args.where.id);
     if (!report) {
