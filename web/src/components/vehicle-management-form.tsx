@@ -25,6 +25,8 @@ export function VehicleManagementForm({ vehicleId, initialValues }: Props) {
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,14 +65,22 @@ export function VehicleManagementForm({ vehicleId, initialValues }: Props) {
   }
 
   async function handleDelete() {
-    setDeleteError(null);
-    setSuccess(null);
-
-    const confirmed = window.confirm("Delete this vehicle and all related timeline/photos? This cannot be undone.");
-    if (!confirmed) {
+    // If confirmation UI not shown, show it first.
+    if (!showDeleteConfirm) {
+      setDeleteError(null);
+      setSuccess(null);
+      setShowDeleteConfirm(true);
       return;
     }
 
+    // Verify user typed "DELETE" exactly.
+    if (deleteConfirmation !== "DELETE") {
+      setDeleteError("Type 'DELETE' exactly to confirm removal.");
+      return;
+    }
+
+    setDeleteError(null);
+    setSuccess(null);
     setDeleting(true);
 
     const response = await fetch(`/api/vehicles/${vehicleId}`, {
@@ -160,15 +170,57 @@ export function VehicleManagementForm({ vehicleId, initialValues }: Props) {
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="rounded-md border border-red-700 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-950 disabled:opacity-60"
-          >
-            {deleting ? "Deleting..." : "Delete Vehicle"}
-          </button>
+          {!showDeleteConfirm ? (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="rounded-md border border-red-700 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-950 disabled:opacity-60"
+            >
+              {deleting ? "Deleting..." : "Delete Vehicle"}
+            </button>
+          ) : null}
         </div>
+
+        {/* Delete confirmation prompt */}
+        {showDeleteConfirm ? (
+          <div className="mt-3 rounded-lg border border-red-700 bg-red-950/30 p-4">
+            <p className="text-sm text-red-200 font-semibold">
+              This will permanently delete this vehicle and all related timeline events and photos.
+            </p>
+            <p className="mt-2 text-sm text-red-100">
+              To confirm, type <code className="bg-red-900/50 px-1 rounded">DELETE</code> below:
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder="Type DELETE"
+              className="mt-2 w-full rounded-md border border-red-700 bg-red-950/50 px-3 py-2 text-sm text-red-100 placeholder-red-700 focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting || deleteConfirmation !== "DELETE"}
+                className="rounded-md border border-red-600 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-900 disabled:opacity-60"
+              >
+                {deleting ? "Deleting..." : "Confirm Delete"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmation("");
+                }}
+                disabled={deleting}
+                className="rounded-md border border-red-700 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-950 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
       </form>
     </section>
   );

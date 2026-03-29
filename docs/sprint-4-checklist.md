@@ -50,3 +50,5 @@ npm run build
 - Report contracts live in `web/src/lib/contracts/report-contracts.ts`.
 - Shared API error contract is in `web/src/lib/contracts/api-contracts.ts`.
 - Moderation queue page is currently available at `/moderation/reports`.
+- Vehicle delete confirmation now requires user to type "DELETE" exactly for safety.
+- Mobile team can reference `docs/API_CONTRACTS.md` and `docs/MOBILE_PARITY_CHECKLIST.md` for parallel React Native development.
