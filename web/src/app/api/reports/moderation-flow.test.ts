@@ -58,12 +58,12 @@ type MockedMethod<TArgs, TResult> = {
   mockImplementation: (implementation: (args: TArgs) => TResult | Promise<TResult>) => void;
 };
 
-const vehicleFindUniqueMock = prisma.vehicle.findUnique as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
-const reportCountMock = prisma.report.count as MockedMethod<never, number>;
-const userFindUniqueMock = prisma.user.findUnique as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
-const reportCreateMock = prisma.report.create as MockedMethod<PrismaMockArgs, PrismaMockRecord>;
-const reportFindUniqueMock = prisma.report.findUnique as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
-const reportUpdateMock = prisma.report.update as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
+const vehicleFindUniqueMock = prisma.vehicle.findUnique as unknown as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
+const reportCountMock = prisma.report.count as unknown as MockedMethod<never, number>;
+const userFindUniqueMock = prisma.user.findUnique as unknown as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
+const reportCreateMock = prisma.report.create as unknown as MockedMethod<PrismaMockArgs, PrismaMockRecord>;
+const reportFindUniqueMock = prisma.report.findUnique as unknown as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
+const reportUpdateMock = prisma.report.update as unknown as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
 
 function setupModerationFlowMocks() {
   // Reporter session is consumed by POST, moderator session is consumed by PATCH.
@@ -83,12 +83,13 @@ function setupModerationFlowMocks() {
   });
 
   reportCreateMock.mockImplementation(async (args) => {
+    const data = args.data ?? {};
     const next = {
       id: "report-1",
-      vehicleId: String(args.data.vehicleId ?? ""),
-      createdById: String(args.data.createdById ?? ""),
-      reason: String(args.data.reason ?? ""),
-      status: (args.data.status ?? "PENDING") as "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED",
+      vehicleId: String(data.vehicleId ?? ""),
+      createdById: String(data.createdById ?? ""),
+      reason: String(data.reason ?? ""),
+      status: (data.status ?? "PENDING") as "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED",
       moderatedById: null,
     };
     reportsStore.push(next);
@@ -101,13 +102,14 @@ function setupModerationFlowMocks() {
   });
 
   reportUpdateMock.mockImplementation(async (args) => {
+    const data = args.data ?? {};
     const report = reportsStore.find((item) => item.id === args.where?.id);
     if (!report) {
       return null;
     }
 
-    report.status = args.data.status as "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED";
-    report.moderatedById = String(args.data.moderatedById ?? "");
+    report.status = data.status as "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED";
+    report.moderatedById = String(data.moderatedById ?? "");
     return { id: report.id };
   });
 }

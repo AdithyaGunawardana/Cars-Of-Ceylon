@@ -129,7 +129,7 @@ export default function App() {
 
     handleInitialLink();
 
-    const subscription = Linking.addEventListener("url", ({ url }) => {
+    const subscription = Linking.addEventListener("url", ({ url }: { url: string }) => {
       const nextScreen = parseDeepLink(url);
       if (nextScreen) {
         setScreen(nextScreen);
@@ -140,7 +140,7 @@ export default function App() {
   }, []);
 
   const currentTab = useMemo(() => {
-    if (screen.name === "vehicle" || screen.name === "profile") {
+    if (screen.name === "vehicle") {
       return null;
     }
 
@@ -337,10 +337,10 @@ function VehiclesScreen({ onOpenVehicle, onOpenProfile }: { onOpenVehicle: (vehi
       <Text style={styles.sectionMeta}>Browse and search Sri Lankan vehicle history records.</Text>
 
       <View style={styles.filterGrid}>
-        <TextInput placeholder="Plate / Unique ID" value={query.search} onChangeText={(search) => setQuery((current) => ({ ...current, search, page: 1 }))} style={styles.input} placeholderTextColor={palette.muted} />
-        <TextInput placeholder="Manufacturer" value={query.manufacturer} onChangeText={(manufacturer) => setQuery((current) => ({ ...current, manufacturer, page: 1 }))} style={styles.input} placeholderTextColor={palette.muted} />
-        <TextInput placeholder="Model" value={query.model} onChangeText={(model) => setQuery((current) => ({ ...current, model, page: 1 }))} style={styles.input} placeholderTextColor={palette.muted} />
-        <TextInput placeholder="Year" value={query.year} onChangeText={(year) => setQuery((current) => ({ ...current, year, page: 1 }))} keyboardType="numeric" style={styles.input} placeholderTextColor={palette.muted} />
+        <TextInput placeholder="Plate / Unique ID" value={query.search} onChangeText={(search: string) => setQuery((current: typeof query) => ({ ...current, search, page: 1 }))} style={styles.input} placeholderTextColor={palette.muted} />
+        <TextInput placeholder="Manufacturer" value={query.manufacturer} onChangeText={(manufacturer: string) => setQuery((current: typeof query) => ({ ...current, manufacturer, page: 1 }))} style={styles.input} placeholderTextColor={palette.muted} />
+        <TextInput placeholder="Model" value={query.model} onChangeText={(model: string) => setQuery((current: typeof query) => ({ ...current, model, page: 1 }))} style={styles.input} placeholderTextColor={palette.muted} />
+        <TextInput placeholder="Year" value={query.year} onChangeText={(year: string) => setQuery((current: typeof query) => ({ ...current, year, page: 1 }))} keyboardType="numeric" style={styles.input} placeholderTextColor={palette.muted} />
       </View>
 
       {loading ? <ActivityIndicator color={palette.primary} /> : null}
@@ -348,8 +348,8 @@ function VehiclesScreen({ onOpenVehicle, onOpenProfile }: { onOpenVehicle: (vehi
 
       <FlatList
         data={items}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        keyExtractor={(item: VehicleListItem) => item.id}
+        renderItem={({ item }: { item: VehicleListItem }) => (
           <Pressable style={styles.listCard} onPress={() => onOpenVehicle(item.id)}>
             <View style={styles.cardRow}>
               <View style={{ flex: 1 }}>
@@ -375,7 +375,7 @@ function VehiclesScreen({ onOpenVehicle, onOpenProfile }: { onOpenVehicle: (vehi
 
       <View style={styles.paginationRow}>
         <Pressable
-          onPress={() => setQuery((current) => ({ ...current, page: Math.max(1, current.page - 1) }))}
+          onPress={() => setQuery((current: typeof query) => ({ ...current, page: Math.max(1, current.page - 1) }))}
           disabled={pagination.page <= 1}
           style={[styles.secondaryButton, pagination.page <= 1 ? styles.buttonDisabled : null]}
         >
@@ -383,7 +383,7 @@ function VehiclesScreen({ onOpenVehicle, onOpenProfile }: { onOpenVehicle: (vehi
         </Pressable>
         <Text style={styles.sectionMeta}>Page {pagination.page} of {pagination.totalPages || 1}</Text>
         <Pressable
-          onPress={() => setQuery((current) => ({ ...current, page: Math.min(pagination.totalPages || 1, current.page + 1) }))}
+          onPress={() => setQuery((current: typeof query) => ({ ...current, page: Math.min(pagination.totalPages || 1, current.page + 1) }))}
           disabled={pagination.page >= pagination.totalPages}
           style={[styles.secondaryButton, pagination.page >= pagination.totalPages ? styles.buttonDisabled : null]}
         >
@@ -672,7 +672,7 @@ function VehicleDetailScreen({ vehicleId, session, onBack, onOpenProfile }: { ve
         <TextInput value={eventDetails} onChangeText={setEventDetails} placeholder="Event details" style={[styles.input, styles.textArea]} multiline placeholderTextColor={palette.muted} />
         <Pressable onPress={createEventHandler} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Add Event</Text></Pressable>
 
-        {vehicle.events.map((event) => (
+        {vehicle.events.map((event: VehicleEvent) => (
           <View key={event.id} style={styles.listCard}>
             {editingEvent?.id === event.id ? (
               <>
@@ -709,7 +709,7 @@ function VehicleDetailScreen({ vehicleId, session, onBack, onOpenProfile }: { ve
           {cancelUpload ? <Pressable onPress={cancelUpload} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancel</Text></Pressable> : null}
         </View>
         {uploadError ? <Text style={styles.errorText}>{uploadError}</Text> : null}
-        {vehicle.photos.map((photo) => (
+        {vehicle.photos.map((photo: VehicleDetail["photos"][number]) => (
           <View key={photo.id} style={styles.listCard}>
             <Image source={{ uri: photo.url }} style={styles.photoImage} />
             <Text style={styles.bodyText}>{photo.caption ?? "Untitled photo"}</Text>
@@ -803,7 +803,7 @@ function ProfileScreen({ userId, currentUserId, onBack, onOpenVehicle }: { userI
 
       <View style={styles.screenCard}>
         <Text style={styles.sectionTitle}>Vehicles</Text>
-        {profile.vehicles.map((vehicle) => (
+        {profile.vehicles.map((vehicle: Profile["vehicles"][number]) => (
           <Pressable key={vehicle.id} style={styles.listCard} onPress={() => onOpenVehicle(vehicle.id)}>
             <Text style={styles.cardTitle}>{vehicle.manufacturer} {vehicle.model}</Text>
             <Text style={styles.cardMeta}>{vehicle.uniqueIdentifier}</Text>
@@ -889,7 +889,7 @@ function ReportsScreen({ session, onOpenVehicle }: { session: AuthSession; onOpe
         </View>
         {loading ? <ActivityIndicator color={palette.primary} /> : null}
         {queueMessage ? <Text style={styles.errorText}>{queueMessage}</Text> : null}
-        {reports.map((report) => (
+        {reports.map((report: ReportItem) => (
           <View key={report.id} style={styles.listCard}>
             <Text style={styles.cardTitle}>{report.vehicle.manufacturer} {report.vehicle.model}</Text>
             <Text style={styles.cardMeta}>Status: {report.status}</Text>
