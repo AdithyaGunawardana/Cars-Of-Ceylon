@@ -41,47 +41,50 @@ function LoginPageContent() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-6 py-10">
-      <h1 className="text-3xl font-bold text-zinc-100">Sign In</h1>
-      <p className="text-sm text-zinc-300">Access your account to add and manage vehicle records.</p>
+    <main className="mx-auto flex w-full max-w-md flex-col gap-5 px-6 py-12">
+      <div className="rounded-[1.75rem] bg-[#ffffff] p-8 shadow-[0_20px_50px_rgba(27,28,21,0.06)] ring-1 ring-[#d3c3c0]/70">
+        <p className="text-xs uppercase tracking-[0.28em] text-[#725a39]">Welcome back</p>
+        <h1 className="mt-2 font-serif text-3xl text-[#271310]">Sign In</h1>
+        <p className="mt-2 text-sm text-[#504442]">Access your account to add and manage vehicle records.</p>
 
-      {registered ? (
-        <p className="rounded-md border border-emerald-700 bg-emerald-950/50 px-3 py-2 text-sm text-emerald-200">
-          Registration successful. You can sign in now.
+        {registered ? (
+          <p className="mt-4 rounded-full bg-[#f5f4e8] px-3 py-2 text-sm text-[#504442] ring-1 ring-[#d3c3c0]/70">
+            Registration successful. You can sign in now.
+          </p>
+        ) : null}
+
+        {error ? (
+          <p className="mt-4 rounded-full bg-[#fff0ef] px-3 py-2 text-sm text-[#9e2a2b] ring-1 ring-[#d3c3c0]/70">{error}</p>
+        ) : null}
+
+        <form onSubmit={handleSubmit} className="mt-5 grid gap-3">
+          <input
+            type="email"
+            name="email"
+            required
+            placeholder="Email"
+            className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
+          />
+          <input
+            type="password"
+            name="password"
+            required
+            placeholder="Password"
+            className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-full bg-[#271310] px-4 py-2 text-sm font-semibold text-[#fbfaee] hover:bg-[#3e2723] disabled:opacity-60"
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
+
+        <p className="mt-4 text-sm text-[#504442]">
+          No account yet? <Link href="/register" className="font-semibold text-[#725a39] hover:text-[#271310]">Create one</Link>
         </p>
-      ) : null}
-
-      {error ? (
-        <p className="rounded-md border border-red-700 bg-red-950/50 px-3 py-2 text-sm text-red-200">{error}</p>
-      ) : null}
-
-      <form onSubmit={handleSubmit} className="grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-        <input
-          type="email"
-          name="email"
-          required
-          placeholder="Email"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        />
-        <input
-          type="password"
-          name="password"
-          required
-          placeholder="Password"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-amber-300 disabled:opacity-60"
-        >
-          {loading ? "Signing in..." : "Sign In"}
-        </button>
-      </form>
-
-      <p className="text-sm text-zinc-300">
-        No account yet? <Link href="/register" className="font-semibold text-amber-300">Create one</Link>
-      </p>
+      </div>
     </main>
   );
 }
@@ -89,7 +92,7 @@ function LoginPageContent() {
 export default function LoginPage() {
   return (
     // Keep useSearchParams in a Suspense boundary to satisfy App Router rendering requirements.
-    <Suspense fallback={<main className="mx-auto w-full max-w-md px-6 py-10 text-sm text-zinc-300">Loading...</main>}>
+    <Suspense fallback={<main className="mx-auto w-full max-w-md px-6 py-10 text-sm text-[#504442]">Loading...</main>}>
       <LoginPageContent />
     </Suspense>
   );

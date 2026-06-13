@@ -35,14 +35,14 @@ export function FollowButton({ userId, signedIn, isSelf, initialIsFollowing }: P
 
   if (!signedIn) {
     return (
-      <Link href={`/login?callbackUrl=/users/${userId}`} className="rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-amber-300">
+      <Link href={`/login?callbackUrl=/users/${userId}`} className="rounded-full bg-[#271310] px-4 py-2 text-sm font-semibold text-[#fbfaee] hover:bg-[#3e2723]">
         Sign in to follow
       </Link>
     );
   }
 
   if (isSelf) {
-    return <span className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-300">This is your profile</span>;
+    return <span className="rounded-full bg-[#f5f4e8] px-4 py-2 text-sm text-[#504442] ring-1 ring-[#d3c3c0]/70">This is your profile</span>;
   }
 
   return (
@@ -50,7 +50,7 @@ export function FollowButton({ userId, signedIn, isSelf, initialIsFollowing }: P
       type="button"
       onClick={toggleFollow}
       disabled={loading}
-      className="rounded-md border border-amber-700 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-950 disabled:opacity-60"
+      className="rounded-full bg-[#725a39] px-4 py-2 text-sm font-semibold text-[#fbfaee] hover:bg-[#5b403c] disabled:opacity-60"
     >
       {loading ? "Updating..." : following ? "Unfollow" : "Follow"}
     </button>

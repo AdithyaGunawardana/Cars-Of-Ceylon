@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope, Noto_Serif } from "next/font/google";
 import { getAuthSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const notoSerif = Noto_Serif({
+  variable: "--font-noto-serif",
   subsets: ["latin"],
 });
 
@@ -40,40 +40,40 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${manrope.variable} ${notoSerif.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-zinc-950 text-zinc-100 flex flex-col">
-        <header className="border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+      <body className="min-h-full bg-[var(--background)] text-[var(--foreground)] flex flex-col">
+        <header className="border-b border-[#d3c3c0]/70 bg-[#fbfaee]/95 backdrop-blur-md">
           <nav className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-6 py-3 md:px-10">
             <div className="flex items-center gap-3">
-              <Link href="/" className="text-sm font-semibold tracking-wide text-amber-300 hover:text-amber-200">
+              <Link href="/" className="font-serif text-sm font-semibold tracking-wide text-[#271310] hover:text-[#725a39]">
                 Cars of Ceylon
               </Link>
-              <Link href="/vehicles" className="text-sm text-zinc-200 hover:text-white">
+              <Link href="/vehicles" className="text-sm text-[#504442] hover:text-[#271310]">
                 Vehicles
               </Link>
-              <Link href="/vehicles/new" className="text-sm text-zinc-200 hover:text-white">
+              <Link href="/vehicles/new" className="text-sm text-[#504442] hover:text-[#271310]">
                 Add Vehicle
               </Link>
               {currentUser ? (
-                <Link href={`/users/${currentUser.id}`} className="text-sm text-zinc-200 hover:text-white">
+                <Link href={`/users/${currentUser.id}`} className="text-sm text-[#504442] hover:text-[#271310]">
                   Profile
                 </Link>
               ) : null}
               {canAccessModeration ? (
-                <Link href="/moderation/reports" className="text-sm text-zinc-200 hover:text-white">
+                <Link href="/moderation/reports" className="text-sm text-[#504442] hover:text-[#271310]">
                   Moderation
                 </Link>
               ) : null}
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-zinc-300">
+            <div className="flex items-center gap-3 text-xs text-[#504442]">
               {currentUser ? (
                 <>
                   <span className="hidden sm:inline">{currentUser.name ?? currentUser.email ?? "Signed in"}</span>
                   <Link
                     href="/api/auth/signout?callbackUrl=/"
-                    className="rounded-md border border-zinc-700 px-3 py-1.5 text-zinc-200 hover:bg-zinc-800"
+                    className="rounded-full border border-[#d3c3c0] px-3 py-1.5 text-[#271310] hover:bg-[#f5f4e8]"
                   >
                     Sign Out
                   </Link>
@@ -81,7 +81,7 @@ export default async function RootLayout({
               ) : (
                 <Link
                   href="/login"
-                  className="rounded-md border border-zinc-700 px-3 py-1.5 text-zinc-200 hover:bg-zinc-800"
+                  className="rounded-full border border-[#d3c3c0] px-3 py-1.5 text-[#271310] hover:bg-[#f5f4e8]"
                 >
                   Sign In
                 </Link>

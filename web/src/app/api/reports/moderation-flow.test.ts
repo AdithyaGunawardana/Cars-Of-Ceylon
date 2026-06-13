@@ -37,24 +37,52 @@ import { prisma } from "@/lib/prisma";
 import { POST as createReport } from "./route";
 import { PATCH as updateReport } from "./[id]/route";
 
+type PrismaMockArgs = {
+  where?: { id?: string };
+  data?: {
+    vehicleId?: string;
+    createdById?: string;
+    reason?: string;
+    status?: "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED";
+    moderatedById?: string;
+  };
+};
+
+type PrismaMockRecord = {
+  id: string;
+  role?: "USER" | "MODERATOR" | "ADMIN";
+};
+
+type MockedMethod<TArgs, TResult> = {
+  mockResolvedValue: (value: TResult) => void;
+  mockImplementation: (implementation: (args: TArgs) => TResult | Promise<TResult>) => void;
+};
+
+const vehicleFindUniqueMock = prisma.vehicle.findUnique as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
+const reportCountMock = prisma.report.count as MockedMethod<never, number>;
+const userFindUniqueMock = prisma.user.findUnique as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
+const reportCreateMock = prisma.report.create as MockedMethod<PrismaMockArgs, PrismaMockRecord>;
+const reportFindUniqueMock = prisma.report.findUnique as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
+const reportUpdateMock = prisma.report.update as MockedMethod<PrismaMockArgs, PrismaMockRecord | null>;
+
 function setupModerationFlowMocks() {
   // Reporter session is consumed by POST, moderator session is consumed by PATCH.
   vi.mocked(getAuthSession)
     .mockResolvedValueOnce({ user: { id: "u-reporter" } } as never)
     .mockResolvedValueOnce({ user: { id: "u-moderator" } } as never);
 
-  (prisma.vehicle.findUnique as any).mockResolvedValue({ id: "vehicle-1" });
-  (prisma.report.count as any).mockResolvedValue(0);
+  vehicleFindUniqueMock.mockResolvedValue({ id: "vehicle-1" });
+  reportCountMock.mockResolvedValue(0);
 
-  (prisma.user.findUnique as any).mockImplementation(async (args: any) => {
-    if (args.where.id === "u-moderator") {
+  userFindUniqueMock.mockImplementation(async (args) => {
+    if (args.where?.id === "u-moderator") {
       return { id: "u-moderator", role: "MODERATOR" };
     }
 
     return { id: "u-reporter", role: "USER" };
   });
 
-  (prisma.report.create as any).mockImplementation(async (args: any) => {
+  reportCreateMock.mockImplementation(async (args) => {
     const next = {
       id: "report-1",
       vehicleId: String(args.data.vehicleId ?? ""),
@@ -67,13 +95,13 @@ function setupModerationFlowMocks() {
     return { id: next.id };
   });
 
-  (prisma.report.findUnique as any).mockImplementation(async (args: any) => {
-    const report = reportsStore.find((item) => item.id === args.where.id);
+  reportFindUniqueMock.mockImplementation(async (args) => {
+    const report = reportsStore.find((item) => item.id === args.where?.id);
     return report ? { id: report.id } : null;
   });
 
-  (prisma.report.update as any).mockImplementation(async (args: any) => {
-    const report = reportsStore.find((item) => item.id === args.where.id);
+  reportUpdateMock.mockImplementation(async (args) => {
+    const report = reportsStore.find((item) => item.id === args.where?.id);
     if (!report) {
       return null;
     }
