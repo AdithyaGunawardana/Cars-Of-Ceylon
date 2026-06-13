@@ -156,6 +156,10 @@ Upload constraints currently enforced server-side:
 
 - Use `docs/sprint-5-checklist.md` for timeline event management expansion, photo UX resilience, moderation hardening, and mobile baseline acceptance.
 
+## Sprint 6 Tracking
+
+- Use `docs/sprint-6-checklist.md` for mobile parity across vehicles, events, photos, moderation, plus profile/follow and search/discovery improvements.
+
 ## Shared Contract Modules
 
 For cross-platform API stability, request/response contracts are centralized in:
