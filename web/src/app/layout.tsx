@@ -55,6 +55,11 @@ export default async function RootLayout({
               <Link href="/vehicles/new" className="text-sm text-zinc-200 hover:text-white">
                 Add Vehicle
               </Link>
+              {currentUser ? (
+                <Link href={`/users/${currentUser.id}`} className="text-sm text-zinc-200 hover:text-white">
+                  Profile
+                </Link>
+              ) : null}
               {canAccessModeration ? (
                 <Link href="/moderation/reports" className="text-sm text-zinc-200 hover:text-white">
                   Moderation

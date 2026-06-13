@@ -79,7 +79,12 @@ export default async function VehicleDetailPage({
         </div>
 
         <p className="mt-4 text-sm text-zinc-200">{vehicle.description ?? "No description added yet."}</p>
-        <p className="mt-3 text-xs text-zinc-400">Added by {vehicle.createdBy.name ?? vehicle.createdBy.email}</p>
+        <p className="mt-3 text-xs text-zinc-400">
+          Added by{" "}
+          <Link href={`/users/${vehicle.createdBy.id}`} className="text-amber-300 hover:text-amber-200">
+            {vehicle.createdBy.name ?? vehicle.createdBy.email}
+          </Link>
+        </p>
       </section>
 
       <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">

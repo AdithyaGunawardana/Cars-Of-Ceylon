@@ -15,7 +15,7 @@
 - [ ] Mobile can create, edit, and delete timeline events via shared API contracts
 - [ ] Mobile can upload photos, retry uploads, and finalize photo metadata via shared API contracts
 - [ ] Mobile can submit reports and view moderator queue when role permits
-- [ ] User profile and follow APIs are available for mobile consumption
+- [x] User profile and follow APIs are available for mobile consumption
 - [ ] Search/filter endpoints support mobile discovery use cases
 
 ## Mobile Acceptance
@@ -31,8 +31,8 @@
 
 ## Web Acceptance
 
-- [ ] Web and mobile share the same response/error contracts for the new flows
-- [ ] Web pages remain source of truth for validation and permission rules
+- [x] Web and mobile share the same response/error contracts for the new flows
+- [x] Web pages remain source of truth for validation and permission rules
 - [ ] Any new UI polish on web is mirrored only after API behavior is stable
 
 ## Test Acceptance
@@ -56,3 +56,4 @@ npm run build
 - Sprint 6 should move the mobile app from bootstrap to feature parity on the most important flows.
 - Keep the web app as the canonical source of behavior, and let mobile follow the same contracts.
 - Add platform-specific polish only after the shared API and behavior are stable.
+- The web profile/follow slice is now implemented under `web/src/app/users/[id]` and `web/src/app/api/users/[id]`.

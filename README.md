@@ -167,5 +167,6 @@ For cross-platform API stability, request/response contracts are centralized in:
 - `web/src/lib/contracts/api-contracts.ts`
 - `web/src/lib/contracts/vehicle-contracts.ts`
 - `web/src/lib/contracts/photo-contracts.ts`
+- `web/src/lib/contracts/user-contracts.ts`
 
 Web route handlers and API tests should import these directly so mobile can reuse the same payload expectations.

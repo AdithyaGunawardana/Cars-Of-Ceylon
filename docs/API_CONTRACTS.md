@@ -66,11 +66,76 @@ Export Report-related schemas for user reports and moderation workflows.
 - `listReportsQuerySchema`: Validates GET /api/reports query parameters
 - `reportStatusSchema`: Enum of `PENDING | REVIEWING | RESOLVED | REJECTED`
 
+### `web/src/lib/contracts/user-contracts.ts`
+
+Export User-related schemas for profile and follow workflows.
+
+**Example Schemas:**
+- `userIdParamsSchema`: Validates `/api/users/:id` path parameters
+- `userProfileResponseSchema`: Shape of successful profile responses
+- `followMutationResponseSchema`: Shape of follow and unfollow responses
+
 ### `web/src/lib/contracts/api-contracts.ts`
 
 Export shared error contract and common response shapes.
 
 ---
+
+## User Endpoints
+
+### Get User Profile
+
+```
+GET /api/users/:id
+Authorization: Optional (viewer-aware)
+```
+
+**Response (200 OK)**:
+```json
+{
+  "user": {
+    "id": "string",
+    "name": "string or null",
+    "email": "string or null",
+    "image": "string or null",
+    "profile": "json or null"
+  },
+  "stats": {
+    "vehicleCount": 0,
+    "followerCount": 0,
+    "followingCount": 0
+  },
+  "relationship": {
+    "isSelf": false,
+    "isFollowing": false
+  },
+  "vehicles": []
+}
+```
+
+**Error Cases**:
+- `400`: Invalid user id
+- `404 Not Found`: User does not exist
+
+### Follow User
+
+```
+POST /api/users/:id/follow
+DELETE /api/users/:id/follow
+Authorization: Required
+```
+
+**Response (200 OK)**:
+```json
+{
+  "following": true
+}
+```
+
+**Error Cases**:
+- `400`: Invalid user id or self-follow/self-unfollow attempt
+- `401 Unauthorized`: Not authenticated
+- `404 Not Found`: Target user does not exist
 
 ## Authentication
 
