@@ -159,6 +159,7 @@ Upload constraints currently enforced server-side:
 ## Sprint 6 Tracking
 
 - Use `docs/sprint-6-checklist.md` for mobile parity across vehicles, events, photos, moderation, plus profile/follow and search/discovery improvements.
+- Sprint 6 is now implemented across web and the restored `mobile/` scaffold.
 
 ## Shared Contract Modules
 
