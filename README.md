@@ -66,6 +66,7 @@ This prevents API drift and keeps behavior consistent across platforms.
   - `DELETE /api/vehicles/:id/events/:eventId` (authenticated, owner/moderator/admin)
   - `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
   - `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
+  - `PATCH /api/vehicles/:id/photos/:photoId` (caption), `DELETE /api/vehicles/:id/photos/:photoId` (owner/moderator/admin)
   - `POST /api/reports` (authenticated; create moderation report)
   - `GET /api/reports` (moderator/admin report queue)
   - `PATCH /api/reports/:id` (moderator/admin status update)
