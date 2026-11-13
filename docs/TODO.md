@@ -15,7 +15,7 @@ Source of truth for remaining work. Derived from the 2026-11-13 repo audit. Upda
 - [x] Seed: no default password in production, no admin password reset
 - [x] Event `sourceUrl` restricted to http(s) (blocks `javascript:` links)
 
-## P1 - Close gaps from earlier sprints (DONE, web UI not browser-tested)
+## P1 - Close gaps from earlier sprints (DONE, verified in a real browser during P2)
 - [x] Real photo thumbnails + lightbox in the web album
 - [x] Web timeline edit/delete UI, ordered by `occurredAt`
 - [x] Web upload: staged status, progress bar, cancel, retry
@@ -25,13 +25,15 @@ Source of truth for remaining work. Derived from the 2026-11-13 repo audit. Upda
 - [x] Sprint checklists and `API_CONTRACTS.md` corrected
 - [x] Fixed: timeline form sent `datetime-local` values the API rejected (now ISO)
 
-## P2 - Refactor and test properly
-- [ ] Finish the shared authz layer (`requireUser`, `requireVehicleManager`, `requireModerator`) and use it in every route
-- [ ] Move remaining page-level Prisma queries into shared data-access functions
-- [ ] Tighten response schemas (full shapes) and reuse them on mobile
-- [ ] Committed integration tests against real Postgres + MinIO (testcontainers or compose) in CI
-- [ ] Playwright E2E: register -> create vehicle -> upload photo -> report -> moderate (also covers the P1 client components)
-- [ ] Commit `scripts/e2e` (the live-stack check used during P0/P1) and run it in CI
+## P2 - Refactor and test properly (DONE)
+- [x] Shared authz guards (`lib/api-auth.ts`: `requireSession`, `resolveModerator`, `resolveVehicleManager`) used by every protected route
+- [x] Shared data access: `getVehicleDetail`, `listPublicVehicles`, `listReports` used by both API routes and pages
+- [x] Strict response schemas (`lib/contracts/response-schemas.ts`) validated against real responses in integration tests
+- [x] Integration tests against real Postgres + MinIO (`npm run test:integration`, dedicated `cars_of_ceylon_test` DB and `cars-of-ceylon-test` bucket)
+- [x] Playwright browser E2E (`npm run test:e2e`): register -> create vehicle -> timeline -> upload photo -> lightbox -> report -> moderate, plus HTTP-level security checks
+- [x] CI runs lint, tsc, unit, build, integration and E2E (`.github/workflows/web-ci.yml`)
+- [x] The ad-hoc live-stack script is superseded by the integration + E2E suites
+- Bugs the new tests found and fixed: duplicate vehicle create returned 500 (now 409); nav stayed on "Sign In" after login; create-vehicle redirect was swallowed by a try/catch; report form hung after submit (`event.currentTarget` read after `await`)
 
 ## P3 - Features needed to call it complete
 - [ ] Profile editing (name, bio, avatar), account settings, password reset, email verification
@@ -40,6 +42,7 @@ Source of truth for remaining work. Derived from the 2026-11-13 repo audit. Upda
 - [ ] Discovery: full-text search, sorting, year range, follow feed
 - [ ] Use `attributes` JSON in forms and filters
 - [ ] SEO (`generateMetadata`, sitemap, OG images); `error.tsx`, `not-found.tsx`, `loading.tsx`
+- [ ] S3/R2 production buckets need a CORS rule allowing `PUT` from the site origin (MinIO allows it by default, which is why the browser E2E passes)
 - [ ] Real landing page; one UI theme everywhere (moderation + login pages still partly use the old zinc theme)
 
 ## P4 - Mobile

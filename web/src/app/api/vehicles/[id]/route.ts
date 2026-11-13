@@ -10,7 +10,7 @@ import {
 } from "@/lib/contracts/vehicle-contracts";
 import { canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { eventOrderBy } from "@/lib/vehicle-queries";
+import { getVehicleDetail } from "@/lib/vehicle-queries";
 
 // Returns one vehicle with timeline/photos and enforces private visibility rules.
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
@@ -21,20 +21,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "Invalid vehicle id" }, { status: 400 });
   }
 
-  const vehicle = await prisma.vehicle.findUnique({
-    where: { id: parsed.data.id },
-    include: {
-      createdBy: {
-        select: { id: true, name: true },
-      },
-      events: {
-        orderBy: eventOrderBy,
-      },
-      photos: {
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
+  const vehicle = await getVehicleDetail(parsed.data.id);
 
   if (!vehicle) {
     return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });

@@ -38,6 +38,8 @@ function LoginPageContent() {
     }
 
     router.push(result.url ?? callbackUrl);
+    // The root layout (nav, role) is server-rendered; refresh so it picks up the new session.
+    router.refresh();
   }
 
   return (

@@ -9,7 +9,7 @@ import { VehicleManagementForm } from "@/components/vehicle-management-form";
 import { VehicleReportForm } from "@/components/vehicle-report-form";
 import { canManageVehicle as userCanManageVehicle, canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { eventOrderBy } from "@/lib/vehicle-queries";
+import { getVehicleDetail } from "@/lib/vehicle-queries";
 
 export default async function VehicleDetailPage({
   params,
@@ -20,20 +20,7 @@ export default async function VehicleDetailPage({
   const session = await getAuthSession();
 
   // Load full detail payload for timeline and album rendering in a single query.
-  const vehicle = await prisma.vehicle.findUnique({
-    where: { id },
-    include: {
-      createdBy: {
-        select: { id: true, name: true },
-      },
-      events: {
-        orderBy: eventOrderBy,
-      },
-      photos: {
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
+  const vehicle = await getVehicleDetail(id);
 
   if (!vehicle) {
     notFound();

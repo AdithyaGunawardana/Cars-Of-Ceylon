@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { type Prisma } from "@prisma/client";
 import { getAuthSession } from "@/auth";
 import { ModerationReportsBoard } from "@/components/moderation-reports-board";
 import { prisma } from "@/lib/prisma";
+import { listReports, parseReportListParams } from "@/lib/report-queries";
 
 export default async function ModerationReportsPage({
   searchParams,
@@ -43,48 +43,12 @@ export default async function ModerationReportsPage({
   }
 
   const params = await searchParams;
-  const status = params.status;
-  const page = Number(params.page ?? "1");
-  const pageSize = Number(params.pageSize ?? "20");
-  const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
-  const safePageSize = Number.isFinite(pageSize) && pageSize > 0 ? Math.min(Math.floor(pageSize), 50) : 20;
-
-  // Build an optional status filter for queue views.
-  const statusFilter =
-    status === "PENDING" || status === "REVIEWING" || status === "RESOLVED" || status === "REJECTED"
-      ? status
-      : null;
-
-  const where: Prisma.ReportWhereInput = statusFilter ? { status: statusFilter } : {};
-
-  const [items, total] = await Promise.all([
-    prisma.report.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (safePage - 1) * safePageSize,
-      take: safePageSize,
-      include: {
-        vehicle: {
-          select: {
-            id: true,
-            uniqueIdentifier: true,
-            manufacturer: true,
-            model: true,
-            year: true,
-          },
-        },
-        createdBy: {
-          select: { id: true, name: true },
-        },
-        moderatedBy: {
-          select: { id: true, name: true },
-        },
-      },
-    }),
-    prisma.report.count({ where }),
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  const query = parseReportListParams(params);
+  const { items, pagination } = await listReports(query);
+  const safePage = pagination.page;
+  const status = query.status;
+  const totalPages = Math.max(1, pagination.totalPages);
+  const total = pagination.total;
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10 md:px-10">

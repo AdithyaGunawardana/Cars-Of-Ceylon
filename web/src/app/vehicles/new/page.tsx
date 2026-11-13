@@ -4,15 +4,12 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { getAuthSession } from "@/auth";
+import { createVehicleRequestSchema } from "@/lib/contracts/vehicle-contracts";
 import { prisma } from "@/lib/prisma";
 
-const formSchema = z.object({
-  uniqueIdentifier: z.string().trim().min(2).max(40),
-  licensePlate: z.string().trim().min(2).max(20).optional().nullable(),
-  manufacturer: z.string().trim().min(2).max(80),
-  model: z.string().trim().min(1).max(80),
+// Form fields arrive as strings, so only `year` needs coercion on top of the shared API contract.
+const formSchema = createVehicleRequestSchema.extend({
   year: z.coerce.number().int().min(1886).max(2100),
-  description: z.string().trim().max(5000).optional().nullable(),
 });
 
 // Server action for authenticated vehicle creation.
@@ -38,6 +35,7 @@ async function createVehicle(formData: FormData) {
     redirect("/vehicles/new?error=validation");
   }
 
+  let vehicleId: string;
   try {
     // Create vehicle and first timeline event atomically so each record has an initial history entry.
     const vehicle = await prisma.vehicle.create({
@@ -54,9 +52,7 @@ async function createVehicle(formData: FormData) {
         },
       },
     });
-
-    revalidatePath("/vehicles");
-    redirect(`/vehicles/${vehicle.id}`);
+    vehicleId = vehicle.id;
   } catch (error) {
     // Prisma P2002 covers uniqueIdentifier/licensePlate uniqueness violations.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -65,6 +61,10 @@ async function createVehicle(formData: FormData) {
 
     redirect("/vehicles/new?error=unknown");
   }
+
+  // redirect() works by throwing, so it must stay outside the try/catch above or the catch would swallow it.
+  revalidatePath("/vehicles");
+  redirect(`/vehicles/${vehicleId}`);
 }
 
 export default async function NewVehiclePage({

@@ -3,6 +3,7 @@ import { loadAuthzUser, requireSession, resolveModerator } from "@/lib/api-auth"
 import { listReportsQuerySchema, createReportRequestSchema } from "@/lib/contracts/report-contracts";
 import { canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { listReports } from "@/lib/report-queries";
 import { rateLimit } from "@/lib/rate-limit";
 
 const REPORT_LIMIT = 5;
@@ -23,47 +24,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
   }
 
-  const { status, page, pageSize } = parsedQuery.data;
-  const where = {
-    ...(status ? { status } : {}),
-  };
-
-  const [items, total] = await Promise.all([
-    prisma.report.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: {
-        vehicle: {
-          select: {
-            id: true,
-            uniqueIdentifier: true,
-            manufacturer: true,
-            model: true,
-            year: true,
-          },
-        },
-        createdBy: {
-          select: { id: true, name: true },
-        },
-        moderatedBy: {
-          select: { id: true, name: true },
-        },
-      },
-    }),
-    prisma.report.count({ where }),
-  ]);
-
-  return NextResponse.json({
-    items,
-    pagination: {
-      page,
-      pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    },
-  });
+  return NextResponse.json(await listReports(parsedQuery.data));
 }
 
 export async function POST(request: Request) {

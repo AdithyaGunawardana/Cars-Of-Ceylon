@@ -199,3 +199,16 @@ npm run dev
 ```
 
 If a native PostgreSQL already uses port 5432, create a root `.env` with `DB_PORT=5433` and use `...@localhost:5433/...` in `web/.env`.
+
+## Testing
+
+From `web/` (Docker `db` + `minio` must be running for the last two):
+
+| Command | What it covers |
+|---|---|
+| `npm run lint` / `npx tsc --noEmit` | Static checks |
+| `npm test` | Unit/contract tests with mocked Prisma (no services needed) |
+| `npm run test:integration` | Route handlers against real Postgres + MinIO (dedicated `cars_of_ceylon_test` DB and bucket, created automatically) |
+| `npm run test:e2e` | Playwright browser tests against a production build on port 3100 (first run: `npx playwright install chromium`) |
+
+CI (`.github/workflows/web-ci.yml`) runs all of them. Set `INTEGRATION_DATABASE_URL` / `INTEGRATION_S3_ENDPOINT` to point the integration/E2E suites at other services.

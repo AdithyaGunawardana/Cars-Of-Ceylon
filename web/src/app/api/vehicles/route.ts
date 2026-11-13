@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
 import { createVehicleRequestSchema, vehicleListQuerySchema } from "@/lib/contracts/vehicle-contracts";
@@ -31,29 +32,37 @@ export async function POST(request: Request) {
     );
   }
 
-  const vehicle = await prisma.vehicle.create({
-    data: {
-      ...parsed.data,
-      createdByUserId: auth.userId,
-      events: {
-        // Every new vehicle starts with a CREATED event so timeline history is never empty.
-        create: {
-          userId: auth.userId,
-          type: "CREATED",
-          title: "Vehicle entry created",
-          details: "Initial vehicle record added.",
+  try {
+    const vehicle = await prisma.vehicle.create({
+      data: {
+        ...parsed.data,
+        createdByUserId: auth.userId,
+        events: {
+          // Every new vehicle starts with a CREATED event so timeline history is never empty.
+          create: {
+            userId: auth.userId,
+            type: "CREATED",
+            title: "Vehicle entry created",
+            details: "Initial vehicle record added.",
+          },
         },
       },
-    },
-    include: {
-      createdBy: {
-        select: { id: true, name: true },
+      include: {
+        createdBy: {
+          select: { id: true, name: true },
+        },
+        _count: {
+          select: { photos: true, events: true },
+        },
       },
-      _count: {
-        select: { photos: true, events: true },
-      },
-    },
-  });
+    });
 
-  return NextResponse.json({ vehicle }, { status: 201 });
+    return NextResponse.json({ vehicle }, { status: 201 });
+  } catch (error) {
+    // Unique constraint on uniqueIdentifier / licensePlate.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "A vehicle with this unique identifier or license plate already exists." }, { status: 409 });
+    }
+    throw error;
+  }
 }

@@ -64,3 +64,15 @@ export const eventOrderBy = [
   { occurredAt: { sort: "desc", nulls: "last" } },
   { createdAt: "desc" },
 ] satisfies Prisma.VehicleEventOrderByWithRelationInput[];
+
+// Full vehicle record used by GET /api/vehicles/:id and the detail page.
+export function getVehicleDetail(id: string) {
+  return prisma.vehicle.findUnique({
+    where: { id },
+    include: {
+      createdBy: { select: { id: true, name: true } },
+      events: { orderBy: eventOrderBy },
+      photos: { orderBy: { createdAt: "desc" } },
+    },
+  });
+}
