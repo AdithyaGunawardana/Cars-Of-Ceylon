@@ -184,3 +184,17 @@ Web route handlers and API tests should import these directly so mobile can reus
 - Seed: `SEED_ADMIN_PASSWORD` is required in production; re-running the seed no longer resets the admin password.
 - Deploy: apply migration `20261113000001_p0_hardening` (`prisma migrate deploy`). It lowercases existing emails — resolve case-duplicate accounts first.
 - Windows note: run `npm test` from a path with an uppercase drive letter (`D:\...`); a lowercase `d:` cwd duplicates the vitest module instance and every suite fails with `Cannot read properties of undefined (reading 'config')`.
+
+## Local Infra Quickstart (Windows-friendly)
+
+Run Postgres + MinIO in Docker and the app on the host:
+
+```bash
+docker compose up -d db minio minio-init
+cd web
+npx prisma migrate deploy      # NOT `migrate dev --name init` — migrations already exist
+npm run prisma:seed
+npm run dev
+```
+
+If a native PostgreSQL already uses port 5432, create a root `.env` with `DB_PORT=5433` and use `...@localhost:5433/...` in `web/.env`.
