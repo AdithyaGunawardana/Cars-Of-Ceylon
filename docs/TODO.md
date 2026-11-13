@@ -36,7 +36,8 @@ Source of truth for remaining work. Derived from the 2026-11-13 repo audit. Upda
 - Bugs the new tests found and fixed: duplicate vehicle create returned 500 (now 409); nav stayed on "Sign In" after login; create-vehicle redirect was swallowed by a try/catch; report form hung after submit (`event.currentTarget` read after `await`)
 
 ## P3 - Features needed to call it complete
-- [ ] Profile editing (name, bio, avatar), account settings, password reset, email verification
+- [x] Profile editing (name, bio, avatar URL) and change password: `/account`, `GET/PATCH /api/account`, `POST /api/account/password` (rate limited)
+- [ ] Password reset and email verification (blocked: needs an email provider; avatar file upload still URL-only)
 - [ ] Vehicle soft delete, moderation audit log, orphaned S3 object cleanup
 - [ ] Moderation actions beyond status changes (hide content, ban user)
 - [ ] Discovery: full-text search, sorting, year range, follow feed
