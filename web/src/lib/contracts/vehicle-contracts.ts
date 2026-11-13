@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+// Only web links are allowed: z.string().url() alone accepts javascript:/data: URLs that become XSS when rendered as href.
+export const httpUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .max(500)
+  .refine((value) => /^https?:\/\//i.test(value), { message: "URL must start with http:// or https://" });
+
 // Shared vehicle id route parameter contract.
 export const vehicleIdParamsSchema = z.object({
   id: z.string().min(1),
@@ -46,7 +54,7 @@ export const createVehicleEventRequestSchema = z.object({
   title: z.string().trim().min(2).max(140),
   details: z.string().trim().max(5000).optional().nullable(),
   occurredAt: z.string().datetime().optional().nullable(),
-  sourceUrl: z.string().url().max(500).optional().nullable(),
+  sourceUrl: httpUrlSchema.optional().nullable(),
 });
 
 // Contract for patching existing timeline events.
@@ -56,7 +64,7 @@ export const updateVehicleEventRequestSchema = z
     title: z.string().trim().min(2).max(140).optional(),
     details: z.string().trim().max(5000).nullable().optional(),
     occurredAt: z.string().datetime().nullable().optional(),
-    sourceUrl: z.string().url().max(500).nullable().optional(),
+    sourceUrl: httpUrlSchema.nullable().optional(),
   })
   .refine((payload) => Object.keys(payload).length > 0, {
     message: "At least one field is required",
