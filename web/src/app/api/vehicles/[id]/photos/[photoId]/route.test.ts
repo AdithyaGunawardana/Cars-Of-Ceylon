@@ -7,6 +7,7 @@ vi.mock("@/auth", () => ({ getAuthSession: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
+    vehicle: { findUnique: vi.fn() },
     vehiclePhoto: { findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
   },
 }));
@@ -22,7 +23,7 @@ import { getUploadStorageConfig } from "@/lib/upload-config";
 import { DELETE, PATCH } from "./route";
 
 const ctx = { params: Promise.resolve({ id: "v1", photoId: "p1" }) };
-const photoRow = { id: "p1", vehicleId: "v1", storageKey: "vehicles/v1/u1/k.png", vehicle: { createdByUserId: "u1" } };
+const photoRow = { id: "p1", vehicleId: "v1", storageKey: "vehicles/v1/u1/k.png" };
 
 function patchRequest(body: unknown) {
   return new Request("http://localhost/api/vehicles/v1/photos/p1", {
@@ -35,6 +36,7 @@ function patchRequest(body: unknown) {
 function asUser(id: string, role: "USER" | "MODERATOR" | "ADMIN" = "USER") {
   vi.mocked(getAuthSession).mockResolvedValue({ user: { id } } as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({ id, role } as never);
+  vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1", createdByUserId: "u1" } as never);
 }
 
 describe("/api/vehicles/:id/photos/:photoId", () => {

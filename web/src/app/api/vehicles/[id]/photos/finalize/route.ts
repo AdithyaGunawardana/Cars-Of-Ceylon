@@ -1,19 +1,16 @@
 import { DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/auth";
+import { requireSession, resolveVehicleManager } from "@/lib/api-auth";
 import { photoFinalizeRequestSchema, photoVehicleParamsSchema } from "@/lib/contracts/photo-contracts";
 import { prisma } from "@/lib/prisma";
-import { canManageVehicle } from "@/lib/authz";
 import { createS3Client, isValidStorageKey } from "@/lib/storage";
 import { buildObjectUrl, getUploadStorageConfig, uploadRules } from "@/lib/upload-config";
 
 // Finalizes an uploaded object by writing photo metadata to the database.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const params = await context.params;
   const parsedParams = photoVehicleParamsSchema.safeParse(params);
@@ -27,23 +24,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Invalid photo data", details: parsedBody.error.flatten() }, { status: 400 });
   }
 
-  const [vehicle, currentUser] = await Promise.all([
-    prisma.vehicle.findUnique({ where: { id: parsedParams.data.id }, select: { id: true, createdByUserId: true } }),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } }),
-  ]);
-
-  if (!vehicle) {
-    return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
-  }
-
-  if (!currentUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Mirror event contribution policy: owner, moderator, or admin can add media entries.
-  if (!canManageVehicle(currentUser, vehicle)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const access = await resolveVehicleManager(parsedParams.data.id, auth.userId);
+  if (!access.ok) return access.response;
+  const { vehicle, user: currentUser } = access;
 
   const storageConfig = getUploadStorageConfig();
   if (!storageConfig) {

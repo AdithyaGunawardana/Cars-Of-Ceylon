@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/auth";
+import { requireSession } from "@/lib/api-auth";
 import { followMutationResponseSchema, userIdParamsSchema } from "@/lib/contracts/user-contracts";
 import { prisma } from "@/lib/prisma";
 
@@ -12,17 +12,15 @@ async function resolveTargetUser(profileUserId: string) {
 
 // Creates a follow edge from the signed-in viewer to another profile.
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const parsedParams = userIdParamsSchema.safeParse(await context.params);
   if (!parsedParams.success) {
     return NextResponse.json({ error: "Invalid user id" }, { status: 400 });
   }
 
-  if (parsedParams.data.id === session.user.id) {
+  if (parsedParams.data.id === auth.userId) {
     return NextResponse.json({ error: "You cannot follow yourself." }, { status: 400 });
   }
 
@@ -33,7 +31,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
   const existing = await prisma.follow.findFirst({
     where: {
-      followerId: session.user.id,
+      followerId: auth.userId,
       followeeId: parsedParams.data.id,
     },
   });
@@ -41,7 +39,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   if (!existing) {
     await prisma.follow.create({
       data: {
-        followerId: session.user.id,
+        followerId: auth.userId,
         followeeId: parsedParams.data.id,
       },
     });
@@ -52,17 +50,15 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
 // Removes a follow edge from the signed-in viewer to another profile.
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const parsedParams = userIdParamsSchema.safeParse(await context.params);
   if (!parsedParams.success) {
     return NextResponse.json({ error: "Invalid user id" }, { status: 400 });
   }
 
-  if (parsedParams.data.id === session.user.id) {
+  if (parsedParams.data.id === auth.userId) {
     return NextResponse.json({ error: "You cannot unfollow yourself." }, { status: 400 });
   }
 
@@ -73,7 +69,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
 
   await prisma.follow.deleteMany({
     where: {
-      followerId: session.user.id,
+      followerId: auth.userId,
       followeeId: parsedParams.data.id,
     },
   });

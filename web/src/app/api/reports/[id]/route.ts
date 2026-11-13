@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/auth";
+import { requireSession, resolveModerator } from "@/lib/api-auth";
 import { reportIdParamsSchema, updateReportStatusRequestSchema } from "@/lib/contracts/report-contracts";
 import { canTransitionReport } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 // Moderators/admins can transition report status and record who handled the decision.
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const params = await context.params;
   const parsedParams = reportIdParamsSchema.safeParse(params);
@@ -23,18 +21,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "Invalid report update", details: parsedBody.error.flatten() }, { status: 400 });
   }
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, role: true },
-  });
-
-  if (!currentUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (currentUser.role !== "MODERATOR" && currentUser.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const moderator = await resolveModerator(auth.userId);
+  if (!moderator.ok) return moderator.response;
+  const currentUser = moderator.user;
 
   const existing = await prisma.report.findUnique({
     where: { id: parsedParams.data.id },

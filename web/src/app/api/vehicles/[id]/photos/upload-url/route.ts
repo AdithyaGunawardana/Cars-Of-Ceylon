@@ -2,19 +2,15 @@ import { randomUUID } from "crypto";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/auth";
+import { requireSession, resolveVehicleManager } from "@/lib/api-auth";
 import { photoUploadUrlRequestSchema, photoVehicleParamsSchema } from "@/lib/contracts/photo-contracts";
-import { prisma } from "@/lib/prisma";
-import { canManageVehicle } from "@/lib/authz";
 import { buildStorageKeyPrefix, createS3Client, extensionByMimeType } from "@/lib/storage";
 import { buildObjectUrl, getUploadStorageConfig, uploadRules } from "@/lib/upload-config";
 
 // Issues a short-lived signed URL so clients can upload directly to object storage.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const params = await context.params;
   const parsedParams = photoVehicleParamsSchema.safeParse(params);
@@ -37,22 +33,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: `File too large. Max is ${uploadRules.maxBytes} bytes.` }, { status: 400 });
   }
 
-  const [vehicle, currentUser] = await Promise.all([
-    prisma.vehicle.findUnique({ where: { id: parsedParams.data.id }, select: { id: true, createdByUserId: true } }),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } }),
-  ]);
-
-  if (!vehicle) {
-    return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
-  }
-
-  if (!currentUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!canManageVehicle(currentUser, vehicle)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const access = await resolveVehicleManager(parsedParams.data.id, auth.userId);
+  if (!access.ok) return access.response;
+  const { vehicle, user: currentUser } = access;
 
   const storageConfig = getUploadStorageConfig();
   if (!storageConfig) {

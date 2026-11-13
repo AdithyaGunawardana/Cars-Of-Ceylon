@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/auth";
+import { requireSession } from "@/lib/api-auth";
 import { createVehicleRequestSchema, vehicleListQuerySchema } from "@/lib/contracts/vehicle-contracts";
 import { prisma } from "@/lib/prisma";
 import { listPublicVehicles } from "@/lib/vehicle-queries";
@@ -18,10 +18,8 @@ export async function GET(request: Request) {
 
 // Creates a new vehicle record for the authenticated contributor.
 export async function POST(request: Request) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const json = await request.json().catch(() => null);
   const parsed = createVehicleRequestSchema.safeParse(json);
@@ -36,11 +34,11 @@ export async function POST(request: Request) {
   const vehicle = await prisma.vehicle.create({
     data: {
       ...parsed.data,
-      createdByUserId: session.user.id,
+      createdByUserId: auth.userId,
       events: {
         // Every new vehicle starts with a CREATED event so timeline history is never empty.
         create: {
-          userId: session.user.id,
+          userId: auth.userId,
           type: "CREATED",
           title: "Vehicle entry created",
           details: "Initial vehicle record added.",

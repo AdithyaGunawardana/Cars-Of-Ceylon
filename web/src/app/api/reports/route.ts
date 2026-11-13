@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/auth";
+import { loadAuthzUser, requireSession, resolveModerator } from "@/lib/api-auth";
 import { listReportsQuerySchema, createReportRequestSchema } from "@/lib/contracts/report-contracts";
 import { canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -10,23 +10,11 @@ const REPORT_WINDOW_MS = 15 * 60 * 1000;
 
 // Allows authenticated users to file reports and moderators to review report queues.
 export async function GET(request: Request) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, role: true },
-  });
-
-  if (!currentUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (currentUser.role !== "MODERATOR" && currentUser.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const moderator = await resolveModerator(auth.userId);
+  if (!moderator.ok) return moderator.response;
 
   const { searchParams } = new URL(request.url);
   const parsedQuery = listReportsQuerySchema.safeParse(Object.fromEntries(searchParams));
@@ -79,13 +67,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   // Per-user throttle: 5 reports per 15 minutes.
-  const limit = rateLimit(`report:${session.user.id}`, REPORT_LIMIT, REPORT_WINDOW_MS);
+  const limit = rateLimit(`report:${auth.userId}`, REPORT_LIMIT, REPORT_WINDOW_MS);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Too many reports. Please try again later." },
@@ -106,10 +92,9 @@ export async function POST(request: Request) {
   });
 
   // Private vehicles are invisible to non-owners, so reporting them must look like "not found".
-  const reporter = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } });
-  if (!reporter) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const loaded = await loadAuthzUser(auth.userId);
+  if (!loaded.ok) return loaded.response;
+  const reporter = loaded.user;
 
   if (!vehicle || !canViewVehicle(reporter, vehicle)) {
     return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
@@ -127,7 +112,7 @@ export async function POST(request: Request) {
   const report = await prisma.report.create({
     data: {
       vehicleId: vehicle.id,
-      createdById: session.user.id,
+      createdById: auth.userId,
       reason: parsedBody.data.reason,
       status: "PENDING",
     },
