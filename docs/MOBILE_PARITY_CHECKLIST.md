@@ -1,5 +1,7 @@
 # Mobile Parity Checklist
 
+> **Status note (2026-11-13):** the boxes below were never updated while sprints 5-6 delivered a first mobile pass. Treat them as an acceptance list, not a progress report. Real progress is tracked in `docs/TODO.md` (P4).
+
 This checklist ensures the React Native + Expo mobile app maintains feature and API parity with the web implementation. Update items as features are completed.
 
 ## Phase 1: Core MVP (Required for Launch)

@@ -1,54 +1,37 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 
-type SearchParams = {
-  manufacturer?: string;
-  model?: string;
-  year?: string;
-  search?: string;
-};
+import { listPublicVehicles, parseVehicleListParams } from "@/lib/vehicle-queries";
 
-// Public vehicle archive with server-side filtering.
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function firstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+// Public vehicle archive with server-side filtering and pagination (shares logic with GET /api/vehicles).
 export default async function VehiclesPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  // Normalize optional query params before building Prisma filters.
-  const manufacturer = params.manufacturer?.trim() || undefined;
-  const model = params.model?.trim() || undefined;
-  const search = params.search?.trim() || undefined;
-  const year = params.year ? Number(params.year) : undefined;
+  const parsed = parseVehicleListParams(params);
+  // Invalid filters (e.g. year=abc) fall back to defaults instead of crashing the page.
+  const filtersInvalid = !parsed.success;
+  const query = parsed.success ? parsed.data : parseVehicleListParams({}).data!;
 
-  // Keep list filtering aligned with API search behavior.
-  const where = {
-    visibility: "PUBLIC" as const,
-    ...(manufacturer ? { manufacturer: { contains: manufacturer, mode: "insensitive" as const } } : {}),
-    ...(model ? { model: { contains: model, mode: "insensitive" as const } } : {}),
-    ...(year && Number.isInteger(year) ? { year } : {}),
-    ...(search
-      ? {
-          OR: [
-            { uniqueIdentifier: { contains: search, mode: "insensitive" as const } },
-            { licensePlate: { contains: search, mode: "insensitive" as const } },
-          ],
-        }
-      : {}),
-  };
+  const { items: vehicles, pagination } = await listPublicVehicles(query);
 
-  const vehicles = await prisma.vehicle.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      createdBy: {
-        select: { name: true },
-      },
-      _count: {
-        select: { events: true, photos: true },
-      },
-    },
-  });
+  // Preserve active filters in pagination links.
+  function pageHref(page: number) {
+    const next = new URLSearchParams();
+    for (const key of ["search", "manufacturer", "model", "year"] as const) {
+      const value = firstValue(params[key])?.trim();
+      if (value) next.set(key, value);
+    }
+    next.set("page", String(page));
+    return `/vehicles?${next.toString()}`;
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 md:px-10">
@@ -69,25 +52,25 @@ export default async function VehiclesPage({
       <form className="grid gap-3 rounded-3xl bg-[#f5f4e8] p-4 shadow-[0_14px_35px_rgba(27,28,21,0.05)] ring-1 ring-[#d3c3c0]/70 md:grid-cols-5">
         <input
           name="search"
-          defaultValue={params.search}
+          defaultValue={firstValue(params.search)}
           placeholder="Plate / Unique ID"
           className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
         />
         <input
           name="manufacturer"
-          defaultValue={params.manufacturer}
+          defaultValue={firstValue(params.manufacturer)}
           placeholder="Manufacturer"
           className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
         />
         <input
           name="model"
-          defaultValue={params.model}
+          defaultValue={firstValue(params.model)}
           placeholder="Model"
           className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
         />
         <input
           name="year"
-          defaultValue={params.year}
+          defaultValue={firstValue(params.year)}
           placeholder="Year"
           className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
         />
@@ -98,6 +81,16 @@ export default async function VehiclesPage({
           Search
         </button>
       </form>
+
+      {filtersInvalid ? (
+        <p className="rounded-full bg-[#fff0ef] px-4 py-2 text-sm text-[#9e2a2b] ring-1 ring-[#d3c3c0]/70">
+          Some filters were invalid and were ignored.
+        </p>
+      ) : null}
+
+      <p className="text-sm text-[#504442]">
+        {pagination.total} vehicle{pagination.total === 1 ? "" : "s"} found
+      </p>
 
       <section className="grid gap-4 md:grid-cols-2">
         {vehicles.length === 0 ? (
@@ -129,6 +122,28 @@ export default async function VehiclesPage({
           </article>
         ))}
       </section>
+
+      {pagination.totalPages > 1 ? (
+        <nav aria-label="Pagination" className="flex items-center justify-between rounded-full bg-[#f5f4e8] px-5 py-3 text-sm text-[#504442] ring-1 ring-[#d3c3c0]/70">
+          {pagination.page > 1 ? (
+            <Link href={pageHref(pagination.page - 1)} className="font-semibold text-[#725a39] hover:text-[#271310]">
+              Previous
+            </Link>
+          ) : (
+            <span className="opacity-40">Previous</span>
+          )}
+          <span>
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
+          {pagination.page < pagination.totalPages ? (
+            <Link href={pageHref(pagination.page + 1)} className="font-semibold text-[#725a39] hover:text-[#271310]">
+              Next
+            </Link>
+          ) : (
+            <span className="opacity-40">Next</span>
+          )}
+        </nav>
+      ) : null}
     </main>
   );
 }

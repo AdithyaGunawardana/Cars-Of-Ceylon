@@ -9,6 +9,7 @@ import {
 } from "@/lib/contracts/vehicle-contracts";
 import { canManageVehicle, canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { eventOrderBy } from "@/lib/vehicle-queries";
 
 // Returns one vehicle with timeline/photos and enforces private visibility rules.
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
@@ -26,7 +27,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
         select: { id: true, name: true },
       },
       events: {
-        orderBy: { createdAt: "desc" },
+        orderBy: eventOrderBy,
       },
       photos: {
         orderBy: { createdAt: "desc" },

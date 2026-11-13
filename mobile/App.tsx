@@ -193,7 +193,7 @@ export default function App() {
       <View style={styles.tabs}>
         <TabButton active={currentTab === "vehicles"} label="Vehicles" onPress={() => setScreen({ name: "vehicles" })} />
         <TabButton active={currentTab === "profile"} label="Profile" onPress={() => setScreen({ name: "profile", userId: session.user.id })} />
-        <TabButton active={currentTab === "reports"} label="Reports" onPress={() => setScreen({ name: "reports" })} />
+        <TabButton active={currentTab === "reports"} label={session.user.role === "MODERATOR" || session.user.role === "ADMIN" ? "Reports" : "Report"} onPress={() => setScreen({ name: "reports" })} />
       </View>
 
       <View style={styles.content}>
@@ -825,8 +825,14 @@ function ReportsScreen({ session, onOpenVehicle }: { session: AuthSession; onOpe
   const [status, setStatus] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [queueMessage, setQueueMessage] = useState<string | null>(null);
+  // Role comes from the web session (UI hint only; the API re-checks permissions on every call).
+  const isModerator = session.user.role === "MODERATOR" || session.user.role === "ADMIN";
 
   useEffect(() => {
+    if (!isModerator) {
+      setLoading(false);
+      return;
+    }
     let active = true;
     async function loadQueue() {
       try {
@@ -847,7 +853,7 @@ function ReportsScreen({ session, onOpenVehicle }: { session: AuthSession; onOpe
     return () => {
       active = false;
     };
-  }, [status]);
+  }, [status, isModerator]);
 
   async function submitReport() {
     try {
@@ -880,6 +886,7 @@ function ReportsScreen({ session, onOpenVehicle }: { session: AuthSession; onOpe
         {submitMessage ? <Text style={styles.sectionMeta}>{submitMessage}</Text> : null}
       </View>
 
+      {isModerator ? (
       <View style={styles.screenCard}>
         <Text style={styles.sectionTitle}>Moderator Queue</Text>
         <View style={styles.modeRow}>
@@ -895,15 +902,23 @@ function ReportsScreen({ session, onOpenVehicle }: { session: AuthSession; onOpe
             <Text style={styles.cardMeta}>Status: {report.status}</Text>
             <Text style={styles.bodyText}>{report.reason}</Text>
             <Pressable onPress={() => onOpenVehicle(report.vehicle.id)}><Text style={styles.linkText}>Open vehicle</Text></Pressable>
+            {/* Mirror server workflow: PENDING -> REVIEWING -> RESOLVED | REJECTED. */}
             <View style={styles.actionRow}>
-              <Pressable onPress={() => updateStatus(report.id, "REVIEWING")} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Review</Text></Pressable>
-              <Pressable onPress={() => updateStatus(report.id, "RESOLVED")} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Resolve</Text></Pressable>
-              <Pressable onPress={() => updateStatus(report.id, "REJECTED")} style={styles.dangerButton}><Text style={styles.primaryButtonText}>Reject</Text></Pressable>
+              {report.status === "PENDING" ? (
+                <Pressable onPress={() => updateStatus(report.id, "REVIEWING")} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Review</Text></Pressable>
+              ) : null}
+              {report.status === "REVIEWING" ? (
+                <>
+                  <Pressable onPress={() => updateStatus(report.id, "RESOLVED")} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Resolve</Text></Pressable>
+                  <Pressable onPress={() => updateStatus(report.id, "REJECTED")} style={styles.dangerButton}><Text style={styles.primaryButtonText}>Reject</Text></Pressable>
+                </>
+              ) : null}
             </View>
           </View>
         ))}
         <Text style={styles.sectionMeta}>{session.user.name ?? session.user.email ?? "Signed in"}</Text>
       </View>
+      ) : null}
     </ScrollView>
   );
 }

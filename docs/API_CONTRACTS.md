@@ -146,19 +146,18 @@ Once authenticated, the user session is available server-side and includes:
 ```typescript
 interface Session {
   user: {
-    id: string;              // User ID (UUID)
-    email: string;           // User email
-    name?: string;           // User name
-    role: "USER" | "MODERATOR" | "ADMIN";  // User role
+    id: string;              // User ID (cuid)
+    email?: string | null;   // Own email
+    name?: string | null;    // User name
+    role: "USER" | "MODERATOR" | "ADMIN";  // UI hint only, refreshed from the DB every 5 minutes
   };
   expires: string;           // ISO timestamp
 }
 ```
 
-**Mobile Note**: Sessions are JWT-based and stored in secure cookies for web. For React Native, use Authorization header:
-```
-Authorization: Bearer <token>
-```
+`role` in the session is a **UI hint**. Every API route re-reads the role from the database before authorizing.
+
+**Mobile Note**: Sessions are NextAuth JWTs carried in an HTTP-only cookie (`credentials: "include"`). A Bearer-token flow is **not implemented yet** (tracked as a P4 item).
 
 ---
 
@@ -314,9 +313,55 @@ Authorization: Required (Owner | Moderator | Admin)
 
 ---
 
+## Timeline Event Endpoints
+
+Permission for all event and photo writes: vehicle owner, moderator, or admin.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/api/vehicles/:id/events` | Body: `type`, `title`, optional `details`, `sourceUrl` (http/https only), `occurredAt` (full ISO datetime, e.g. `2024-02-02T10:00:00.000Z`) |
+| PATCH | `/api/vehicles/:id/events/:eventId` | Any subset of the create fields |
+| DELETE | `/api/vehicles/:id/events/:eventId` | `204` |
+
+Events in `GET /api/vehicles/:id` are ordered by `occurredAt` (newest first, undated last), then `createdAt`.
+
+---
+
+## Photo Endpoints
+
+Upload flow: **upload-url -> PUT to storage -> finalize**.
+
+### 1. Request upload URL
+```
+POST /api/vehicles/:id/photos/upload-url
+{ "fileName": "front.jpg", "fileType": "image/jpeg", "fileSize": 123456 }
+```
+Allowed types: `image/jpeg`, `image/png`, `image/webp`. Max 10 MB. Response (200): `{ uploadUrl, storageKey, publicUrl, expiresInSeconds, maxBytes }`.
+
+### 2. Upload the file
+`PUT <uploadUrl>` with the raw bytes. The request **must** send `Content-Type` equal to `fileType`, and the body length must equal `fileSize`, otherwise storage rejects it (403). The URL expires after 5 minutes; request a new one to retry.
+
+### 3. Finalize
+```
+POST /api/vehicles/:id/photos/finalize
+{ "storageKey": "<from step 1>", "caption": "optional" }
+```
+`201 { photo }`. `400` if the key was not issued to this user for this vehicle, the object is missing, or it violates size/type rules. `409` if already finalized.
+
+### Edit caption / delete
+```
+PATCH  /api/vehicles/:id/photos/:photoId   { "caption": "string | null" }   -> 200 { photo }
+DELETE /api/vehicles/:id/photos/:photoId                                    -> 204
+```
+`404` if the photo does not belong to the vehicle in the URL. Delete also removes the stored object (best effort).
+
+---
+
 ## Report Endpoints
 
 ### Create Report
+
+Rules: 5 reports per 15 minutes per user (`429` with `Retry-After`); one open (`PENDING`/`REVIEWING`) report per user per vehicle (`409`); reporting a vehicle the caller cannot view (private, not owner/moderator/admin) returns `404`.
 
 ```
 POST /api/reports
@@ -429,39 +474,16 @@ Authorization: Required (Moderator | Admin role)
 }
 ```
 
-Note: Status transitions to `PENDING` are invalid; reports start in `PENDING`.
+**Workflow (enforced server-side)**: `PENDING -> REVIEWING -> RESOLVED | REJECTED`. `RESOLVED` and `REJECTED` are terminal. Any other transition returns `409`.
 
-**Response (200 OK)**:
-```json
-{
-  "id": "string",
-  "vehicleId": "string",
-  "vehicle": {
-    "uniqueIdentifier": "string",
-    "licensePlate": "string or null"
-  },
-  "creator": {
-    "id": "string",
-    "email": "string",
-    "name": "string or null"
-  },
-  "reason": "string",
-  "status": "REVIEWING | RESOLVED | REJECTED",
-  "moderator": {
-    "id": "string",
-    "email": "string",
-    "name": "string or null"
-  },
-  "createdAt": "ISO datetime",
-  "moderatedAt": "ISO datetime"
-}
-```
+**Response (200 OK)**: `{ "report": { id, vehicleId, reason, status, moderatedById, moderatedAt, createdAt, updatedAt, vehicle, createdBy: { id, name }, moderatedBy: { id, name } } }`
 
 **Error Cases**:
 - `400`: Invalid or missing `status`
 - `401 Unauthorized`: Not authenticated
 - `403 Forbidden`: User role is not Moderator or Admin
 - `404 Not Found`: Report does not exist
+- `409 Conflict`: Invalid transition, or another moderator changed the status first (refresh and retry)
 
 ---
 
@@ -606,6 +628,7 @@ interface CreateVehicleRequest {
 | 403  | Forbidden | User lacks permission (not owner/mod/admin) |
 | 404  | Not Found | Resource does not exist |
 | 409  | Conflict | Unique constraint violation (duplicate identifier/plate) |
+| 429  | Too Many Requests | Rate limit hit; honor the `Retry-After` header (seconds) |
 | 500  | Internal Server Error | Unhandled backend error |
 
 ---

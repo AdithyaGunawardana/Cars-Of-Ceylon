@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthSession } from "@/auth";
-import { VehicleContributionForms } from "@/components/vehicle-contribution-forms";
+import { EventCreateForm } from "@/components/event-create-form";
+import { PhotoAlbum } from "@/components/photo-album";
+import { PhotoUploadForm } from "@/components/photo-upload-form";
+import { TimelineEventList } from "@/components/timeline-event-list";
 import { VehicleManagementForm } from "@/components/vehicle-management-form";
 import { VehicleReportForm } from "@/components/vehicle-report-form";
 import { canManageVehicle as userCanManageVehicle, canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { eventOrderBy } from "@/lib/vehicle-queries";
 
 export default async function VehicleDetailPage({
   params,
@@ -23,7 +27,7 @@ export default async function VehicleDetailPage({
         select: { id: true, name: true },
       },
       events: {
-        orderBy: { createdAt: "desc" },
+        orderBy: eventOrderBy,
       },
       photos: {
         orderBy: { createdAt: "desc" },
@@ -87,41 +91,44 @@ export default async function VehicleDetailPage({
       <section className="rounded-[1.5rem] bg-[#ffffff] p-6 shadow-[0_20px_50px_rgba(27,28,21,0.06)] ring-1 ring-[#d3c3c0]/70">
         <h2 className="font-serif text-xl text-[#271310]">Timeline</h2>
         <div className="mt-4">
-          <VehicleContributionForms
+          <TimelineEventList
+            vehicleId={vehicle.id}
+            canManage={canContribute}
+            events={vehicle.events.map((event) => ({
+              id: event.id,
+              type: event.type,
+              title: event.title,
+              details: event.details,
+              sourceUrl: event.sourceUrl,
+              occurredAt: event.occurredAt?.toISOString() ?? null,
+              createdAt: event.createdAt.toISOString(),
+            }))}
+          />
+        </div>
+        <div className="mt-6">
+          <EventCreateForm
             vehicleId={vehicle.id}
             canContribute={canContribute}
             isSignedIn={Boolean(session?.user?.id)}
           />
         </div>
-        <div className="mt-4 space-y-3">
-          {vehicle.events.length === 0 ? <p className="text-sm text-[#504442]">No events yet.</p> : null}
-
-          {vehicle.events.map((event) => (
-            <article key={event.id} className="rounded-2xl bg-[#f5f4e8] p-4 ring-1 ring-[#d3c3c0]/70">
-              <p className="text-sm font-semibold text-[#271310]">{event.title}</p>
-              <p className="text-xs text-[#765f5c]">
-                {event.type} • {new Date(event.createdAt).toLocaleString()}
-              </p>
-              <p className="mt-2 text-sm text-[#504442]">{event.details ?? "No details provided."}</p>
-            </article>
-          ))}
-        </div>
       </section>
 
       <section className="rounded-[1.5rem] bg-[#ffffff] p-6 shadow-[0_20px_50px_rgba(27,28,21,0.06)] ring-1 ring-[#d3c3c0]/70">
         <h2 className="font-serif text-xl text-[#271310]">Photo Album</h2>
-        {vehicle.photos.length === 0 ? (
-          <p className="mt-3 text-sm text-[#504442]">No photos uploaded yet.</p>
-        ) : (
-          <ul className="mt-4 grid gap-3 md:grid-cols-2">
-            {vehicle.photos.map((photo) => (
-              <li key={photo.id} className="rounded-2xl bg-[#f5f4e8] p-3 text-sm text-[#271310] ring-1 ring-[#d3c3c0]/70">
-                <p className="font-semibold">{photo.caption ?? "Untitled photo"}</p>
-                <p className="text-xs text-[#765f5c]">{photo.url}</p>
-              </li>
-            ))}
-          </ul>
-        )}
+        <PhotoAlbum
+          vehicleId={vehicle.id}
+          vehicleName={`${vehicle.manufacturer} ${vehicle.model}`}
+          canManage={canContribute}
+          photos={vehicle.photos.map((photo) => ({ id: photo.id, url: photo.url, caption: photo.caption }))}
+        />
+        <div className="mt-6">
+          <PhotoUploadForm
+            vehicleId={vehicle.id}
+            canContribute={canContribute}
+            isSignedIn={Boolean(session?.user?.id)}
+          />
+        </div>
       </section>
 
       {canManageVehicle ? (

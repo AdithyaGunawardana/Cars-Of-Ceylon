@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthSession } from "@/auth";
 import { createVehicleRequestSchema, vehicleListQuerySchema } from "@/lib/contracts/vehicle-contracts";
 import { prisma } from "@/lib/prisma";
+import { listPublicVehicles } from "@/lib/vehicle-queries";
 
 // Lists public vehicles with filters/pagination.
 export async function GET(request: Request) {
@@ -12,52 +13,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
   }
 
-  const { manufacturer, model, year, search, page, pageSize } = parsed.data;
-
-  // Build dynamic filters so list/search behavior stays consistent for web and future mobile clients.
-  const where = {
-    visibility: "PUBLIC" as const,
-    ...(manufacturer ? { manufacturer: { contains: manufacturer, mode: "insensitive" as const } } : {}),
-    ...(model ? { model: { contains: model, mode: "insensitive" as const } } : {}),
-    ...(year ? { year } : {}),
-    ...(search
-      ? {
-          OR: [
-            { uniqueIdentifier: { contains: search, mode: "insensitive" as const } },
-            { licensePlate: { contains: search, mode: "insensitive" as const } },
-          ],
-        }
-      : {}),
-  };
-
-  // Fetch result page and total count together for efficient pagination metadata.
-  const [items, total] = await Promise.all([
-    prisma.vehicle.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: {
-        createdBy: {
-          select: { id: true, name: true },
-        },
-        _count: {
-          select: { photos: true, events: true },
-        },
-      },
-    }),
-    prisma.vehicle.count({ where }),
-  ]);
-
-  return NextResponse.json({
-    items,
-    pagination: {
-      page,
-      pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    },
-  });
+  return NextResponse.json(await listPublicVehicles(parsed.data));
 }
 
 // Creates a new vehicle record for the authenticated contributor.

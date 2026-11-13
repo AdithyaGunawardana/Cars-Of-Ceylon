@@ -8,6 +8,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 
+const ROLE_REFRESH_MS = 5 * 60 * 1000;
+
 const credentialSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8),
@@ -89,12 +91,23 @@ export const authOptions: NextAuthOptions = {
       if (user?.id) {
         token.sub = user.id;
       }
+
+      // Cache the role in the token (refreshed every 5 minutes) so pages/mobile can show role-aware UI
+      // without a DB query per request. API routes still re-read the role from the DB for authorization.
+      const now = Date.now();
+      const stale = !token.roleCheckedAt || now - token.roleCheckedAt > ROLE_REFRESH_MS;
+      if (token.sub && (user || stale || !token.role)) {
+        const dbUser = await prisma.user.findUnique({ where: { id: token.sub }, select: { role: true } });
+        token.role = dbUser?.role ?? "USER";
+        token.roleCheckedAt = now;
+      }
       return token;
     },
     async session({ session, token }) {
       // Expose user id in session payload for downstream ownership/permission checks.
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        session.user.role = token.role ?? "USER";
       }
       return session;
     },

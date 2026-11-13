@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Manrope, Noto_Serif } from "next/font/google";
 import { getAuthSession } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -27,12 +26,9 @@ export default async function RootLayout({
 }>) {
   const session = await getAuthSession();
 
-  // Load role once for layout-level navigation gating.
+  // Role comes from the JWT (refreshed periodically); pages and API routes re-check permissions server-side.
   const currentUser = session?.user?.id
-    ? await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { id: true, role: true, name: true, email: true },
-      })
+    ? { id: session.user.id, role: session.user.role, name: session.user.name, email: session.user.email }
     : null;
 
   const canAccessModeration = currentUser?.role === "MODERATOR" || currentUser?.role === "ADMIN";
