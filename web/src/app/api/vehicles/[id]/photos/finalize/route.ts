@@ -1,8 +1,12 @@
+import { DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/auth";
 import { photoFinalizeRequestSchema, photoVehicleParamsSchema } from "@/lib/contracts/photo-contracts";
 import { prisma } from "@/lib/prisma";
-import { buildObjectUrl, getUploadStorageConfig } from "@/lib/upload-config";
+import { canManageVehicle } from "@/lib/authz";
+import { createS3Client, isValidStorageKey } from "@/lib/storage";
+import { buildObjectUrl, getUploadStorageConfig, uploadRules } from "@/lib/upload-config";
 
 // Finalizes an uploaded object by writing photo metadata to the database.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -37,10 +41,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
 
   // Mirror event contribution policy: owner, moderator, or admin can add media entries.
-  const canContribute =
-    vehicle.createdByUserId === currentUser.id || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-
-  if (!canContribute) {
+  if (!canManageVehicle(currentUser, vehicle)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -52,18 +53,50 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     );
   }
 
+  // Only keys minted by upload-url for this vehicle and this user are accepted.
+  if (!isValidStorageKey(parsedBody.data.storageKey, vehicle.id, currentUser.id)) {
+    return NextResponse.json({ error: "Invalid storage key" }, { status: 400 });
+  }
+
+  // Verify the object really exists and still satisfies upload rules before recording it.
+  const client = createS3Client(storageConfig);
+  let head;
+  try {
+    head = await client.send(new HeadObjectCommand({ Bucket: storageConfig.bucket, Key: parsedBody.data.storageKey }));
+  } catch {
+    return NextResponse.json({ error: "Uploaded file not found. Upload it before finalizing." }, { status: 400 });
+  }
+
+  const allowedTypes: readonly string[] = uploadRules.allowedImageTypes;
+  const sizeOk = typeof head.ContentLength === "number" && head.ContentLength > 0 && head.ContentLength <= uploadRules.maxBytes;
+  const typeOk = Boolean(head.ContentType && allowedTypes.includes(head.ContentType));
+  if (!sizeOk || !typeOk) {
+    // Remove the offending object so it cannot be served from the public bucket.
+    await client
+      .send(new DeleteObjectCommand({ Bucket: storageConfig.bucket, Key: parsedBody.data.storageKey }))
+      .catch(() => undefined);
+    return NextResponse.json({ error: "Uploaded file violates size or type rules" }, { status: 400 });
+  }
+
   // Rebuild the canonical URL on the server to avoid trusting client-provided public URLs.
   const url = buildObjectUrl(parsedBody.data.storageKey, storageConfig);
 
-  const photo = await prisma.vehiclePhoto.create({
-    data: {
-      vehicleId: vehicle.id,
-      userId: currentUser.id,
-      url,
-      storageKey: parsedBody.data.storageKey,
-      caption: parsedBody.data.caption,
-    },
-  });
+  try {
+    const photo = await prisma.vehiclePhoto.create({
+      data: {
+        vehicleId: vehicle.id,
+        userId: currentUser.id,
+        url,
+        storageKey: parsedBody.data.storageKey,
+        caption: parsedBody.data.caption,
+      },
+    });
 
-  return NextResponse.json({ photo }, { status: 201 });
+    return NextResponse.json({ photo }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "This upload has already been finalized" }, { status: 409 });
+    }
+    throw error;
+  }
 }

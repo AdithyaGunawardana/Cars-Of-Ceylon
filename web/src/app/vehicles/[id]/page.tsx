@@ -4,6 +4,7 @@ import { getAuthSession } from "@/auth";
 import { VehicleContributionForms } from "@/components/vehicle-contribution-forms";
 import { VehicleManagementForm } from "@/components/vehicle-management-form";
 import { VehicleReportForm } from "@/components/vehicle-report-form";
+import { canManageVehicle as userCanManageVehicle, canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 export default async function VehicleDetailPage({
@@ -19,7 +20,7 @@ export default async function VehicleDetailPage({
     where: { id },
     include: {
       createdBy: {
-        select: { id: true, name: true, email: true },
+        select: { id: true, name: true },
       },
       events: {
         orderBy: { createdAt: "desc" },
@@ -34,14 +35,7 @@ export default async function VehicleDetailPage({
     notFound();
   }
 
-  if (vehicle.visibility === "PRIVATE") {
-    // Match API behavior: hide private records from non-owners.
-    if (session?.user?.id !== vehicle.createdByUserId) {
-      notFound();
-    }
-  }
-
-  // Compute contribution permission once and pass it to both timeline and photo form controls.
+  // Compute permissions once and pass them to the contribution/management controls.
   const currentUser = session?.user?.id
     ? await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -49,10 +43,12 @@ export default async function VehicleDetailPage({
       })
     : null;
 
-  const canContribute = Boolean(
-    currentUser &&
-      (currentUser.id === vehicle.createdByUserId || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN"),
-  );
+  // Match API behavior: private records are visible to owner, moderators and admins only.
+  if (!canViewVehicle(currentUser, vehicle)) {
+    notFound();
+  }
+
+  const canContribute = userCanManageVehicle(currentUser, vehicle);
 
   // Same policy as contribution actions: owner/moderator/admin can manage metadata.
   const canManageVehicle = canContribute;
@@ -83,7 +79,7 @@ export default async function VehicleDetailPage({
         <p className="mt-3 text-xs text-[#765f5c]">
           Added by{" "}
           <Link href={`/users/${vehicle.createdBy.id}`} className="text-[#725a39] hover:text-[#271310]">
-            {vehicle.createdBy.name ?? vehicle.createdBy.email}
+            {vehicle.createdBy.name ?? "Unnamed member"}
           </Link>
         </p>
       </section>

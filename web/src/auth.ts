@@ -6,9 +6,10 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getClientIp, rateLimit } from "@/lib/rate-limit";
 
 const credentialSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8),
 });
 
@@ -20,9 +21,16 @@ const providers = [
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
-    async authorize(rawCredentials) {
+    async authorize(rawCredentials, req) {
       const parsed = credentialSchema.safeParse(rawCredentials);
       if (!parsed.success) {
+        return null;
+      }
+
+      // Brute-force guard: 10 attempts / 15 min per email+IP and 30 / 15 min per IP.
+      const ip = getClientIp({ get: (name) => (req?.headers as Record<string, string> | undefined)?.[name] ?? null });
+      const windowMs = 15 * 60 * 1000;
+      if (!rateLimit(`login:ip:${ip}`, 30, windowMs).allowed || !rateLimit(`login:${parsed.data.email}:${ip}`, 10, windowMs).allowed) {
         return null;
       }
 

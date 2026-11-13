@@ -79,6 +79,8 @@ describe("GET /api/users/:id", () => {
     expect(payload.relationship).toEqual({ isSelf: true, isFollowing: false });
     expect(payload.stats).toEqual({ vehicleCount: 1, followerCount: 3, followingCount: 7 });
     expect(payload.vehicles).toHaveLength(1);
+    // Owner sees their own email.
+    expect(payload.user.email).toBe("owner@example.com");
     expect(prisma.vehicle.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -87,5 +89,40 @@ describe("GET /api/users/:id", () => {
       }),
     );
     expect(prisma.follow.findFirst).not.toHaveBeenCalled();
+  });
+
+  function mockProfileLookup(viewer: { id: string; role: "USER" | "MODERATOR" | "ADMIN" } | null) {
+    vi.mocked(getAuthSession).mockResolvedValue((viewer ? { user: { id: viewer.id } } : null) as never);
+    vi.mocked(prisma.user.findUnique).mockImplementation((async (args: { where: { id: string } }) =>
+      args.where.id === "u1"
+        ? { id: "u1", name: "Owner", email: "owner@example.com", image: null, profile: null }
+        : viewer) as never);
+    vi.mocked(prisma.vehicle.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.follow.count).mockResolvedValue(0 as never);
+    vi.mocked(prisma.follow.findFirst).mockResolvedValue(null as never);
+  }
+
+  it.each([
+    ["anonymous viewers", null],
+    ["other users", { id: "u2", role: "USER" as const }],
+    ["moderators", { id: "m1", role: "MODERATOR" as const }],
+  ])("hides email from %s", async (_label, viewer) => {
+    mockProfileLookup(viewer);
+
+    const response = await GET(new Request("http://localhost/api/users/u1"), { params: Promise.resolve({ id: "u1" }) });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.user.email).toBeNull();
+    expect(JSON.stringify(payload)).not.toContain("owner@example.com");
+  });
+
+  it("shows email to admins", async () => {
+    mockProfileLookup({ id: "a1", role: "ADMIN" });
+
+    const response = await GET(new Request("http://localhost/api/users/u1"), { params: Promise.resolve({ id: "u1" }) });
+    const payload = await response.json();
+
+    expect(payload.user.email).toBe("owner@example.com");
   });
 });

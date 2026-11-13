@@ -7,6 +7,7 @@ import {
   vehicleIdParamsSchema,
   updateVehicleSuccessSchema,
 } from "@/lib/contracts/vehicle-contracts";
+import { canManageVehicle, canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 // Returns one vehicle with timeline/photos and enforces private visibility rules.
@@ -39,9 +40,11 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 
   if (vehicle.visibility === "PRIVATE") {
     const session = await getAuthSession();
+    const viewer = session?.user?.id
+      ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } })
+      : null;
     // Return 404 for unauthorized private access to avoid leaking record existence.
-    const canViewPrivate = session?.user?.id === vehicle.createdByUserId;
-    if (!canViewPrivate) {
+    if (!canViewVehicle(viewer, vehicle)) {
       return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
     }
   }
@@ -83,10 +86,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const canManage =
-    currentUser.id === vehicle.createdByUserId || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-
-  if (!canManage) {
+  if (!canManageVehicle(currentUser, vehicle)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -142,10 +142,7 @@ export async function DELETE(_: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const canManage =
-    currentUser.id === vehicle.createdByUserId || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-
-  if (!canManage) {
+  if (!canManageVehicle(currentUser, vehicle)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

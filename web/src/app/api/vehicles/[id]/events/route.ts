@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/auth";
 import { createVehicleEventRequestSchema, vehicleIdParamsSchema } from "@/lib/contracts/vehicle-contracts";
+import { canManageVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 // Creates a timeline event for a vehicle when the caller has contribution permissions.
@@ -36,10 +37,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
 
   // Owners and moderation roles can contribute timeline records.
-  const canContribute =
-    vehicle.createdByUserId === currentUser.id || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-
-  if (!canContribute) {
+  if (!canManageVehicle(currentUser, vehicle)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

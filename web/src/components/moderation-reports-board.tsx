@@ -25,6 +25,7 @@ type ReportItem = {
     id: string;
     name: string | null;
   } | null;
+  moderatedAt: string | Date | null;
 };
 
 type Props = {
@@ -84,33 +85,33 @@ export function ModerationReportsBoard({ reports }: Props) {
             <p className="mt-2 text-xs text-zinc-400">
               Reported by {report.createdBy.name ?? "Unknown"} • {new Date(report.createdAt).toLocaleString()}
             </p>
-            <p className="text-xs text-zinc-400">Last moderated by {report.moderatedBy?.name ?? "Not yet moderated"}</p>
+            <p className="text-xs text-zinc-400">Last moderated by {report.moderatedBy?.name ?? "Not yet moderated"}{report.moderatedAt ? ` • ${new Date(report.moderatedAt).toLocaleString()}` : ""}</p>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              {/* Disable a button when report already has that status to avoid no-op writes. */}
+              {/* Mirror server workflow: PENDING -> REVIEWING -> RESOLVED | REJECTED. */}
               <button
                 type="button"
-                disabled={updatingId === report.id || report.status === "REVIEWING"}
+                disabled={updatingId === report.id || report.status !== "PENDING"}
                 onClick={() => handleStatusChange(report.id, "REVIEWING")}
                 className="rounded-md border border-sky-700 px-3 py-1.5 text-xs font-semibold text-sky-200 hover:bg-sky-950 disabled:opacity-60"
               >
-                {report.status === "REVIEWING" ? "Already Reviewing" : "Mark Reviewing"}
+                {report.status === "PENDING" ? "Mark Reviewing" : "Reviewing"}
               </button>
               <button
                 type="button"
-                disabled={updatingId === report.id || report.status === "RESOLVED"}
+                disabled={updatingId === report.id || report.status !== "REVIEWING"}
                 onClick={() => handleStatusChange(report.id, "RESOLVED")}
                 className="rounded-md border border-emerald-700 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-950 disabled:opacity-60"
               >
-                {report.status === "RESOLVED" ? "Already Resolved" : "Resolve"}
+                Resolve
               </button>
               <button
                 type="button"
-                disabled={updatingId === report.id || report.status === "REJECTED"}
+                disabled={updatingId === report.id || report.status !== "REVIEWING"}
                 onClick={() => handleStatusChange(report.id, "REJECTED")}
                 className="rounded-md border border-amber-700 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-950 disabled:opacity-60"
               >
-                {report.status === "REJECTED" ? "Already Rejected" : "Reject"}
+                Reject
               </button>
             </div>
           </article>

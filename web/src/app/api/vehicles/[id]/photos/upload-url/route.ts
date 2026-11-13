@@ -1,10 +1,12 @@
 import { randomUUID } from "crypto";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/auth";
 import { photoUploadUrlRequestSchema, photoVehicleParamsSchema } from "@/lib/contracts/photo-contracts";
 import { prisma } from "@/lib/prisma";
+import { canManageVehicle } from "@/lib/authz";
+import { buildStorageKeyPrefix, createS3Client, extensionByMimeType } from "@/lib/storage";
 import { buildObjectUrl, getUploadStorageConfig, uploadRules } from "@/lib/upload-config";
 
 // Issues a short-lived signed URL so clients can upload directly to object storage.
@@ -48,10 +50,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const canContribute =
-    vehicle.createdByUserId === currentUser.id || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-
-  if (!canContribute) {
+  if (!canManageVehicle(currentUser, vehicle)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -63,31 +62,27 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     );
   }
 
-  const safeExtension = parsedBody.data.fileName.includes(".")
-    ? parsedBody.data.fileName.split(".").pop()?.toLowerCase() || "bin"
-    : "bin";
+  // Extension comes from the validated MIME type; the client filename is never used in the key.
+  const extension = extensionByMimeType[parsedBody.data.fileType];
 
-  // Use a namespaced, collision-resistant key so uploads remain traceable per vehicle.
-  const storageKey = `vehicles/${vehicle.id}/${Date.now()}-${randomUUID()}.${safeExtension}`;
+  // Key is scoped to vehicle + uploader so finalize can verify the caller requested this upload.
+  const storageKey = `${buildStorageKeyPrefix(vehicle.id, currentUser.id)}${Date.now()}-${randomUUID()}.${extension}`;
 
-  const client = new S3Client({
-    endpoint: storageConfig.endpoint,
-    region: storageConfig.region,
-    forcePathStyle: true,
-    credentials: {
-      accessKeyId: storageConfig.accessKeyId,
-      secretAccessKey: storageConfig.secretAccessKey,
-    },
-  });
+  const client = createS3Client(storageConfig);
 
+  // ContentLength + ContentType are signed, so storage rejects bodies that differ from what was validated here.
   const command = new PutObjectCommand({
     Bucket: storageConfig.bucket,
     Key: storageKey,
     ContentType: parsedBody.data.fileType,
+    ContentLength: parsedBody.data.fileSize,
   });
 
   // Short-lived URL keeps direct uploads secure while avoiding proxying binary data through Next.js.
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn: 300 });
+  const uploadUrl = await getSignedUrl(client, command, {
+    expiresIn: 300,
+    signableHeaders: new Set(["content-type"]),
+  });
   const publicUrl = buildObjectUrl(storageKey, storageConfig);
 
   return NextResponse.json({

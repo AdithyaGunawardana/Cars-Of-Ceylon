@@ -171,3 +171,16 @@ For cross-platform API stability, request/response contracts are centralized in:
 - `web/src/lib/contracts/user-contracts.ts`
 
 Web route handlers and API tests should import these directly so mobile can reuse the same payload expectations.
+
+## Security Hardening (P0)
+
+- Report workflow is enforced server-side: `PENDING -> REVIEWING -> RESOLVED | REJECTED` (409 otherwise); `moderatedAt` is recorded.
+- `POST /api/reports`: 5 reports / 15 min per user (429 + `Retry-After`), one open report per user per vehicle, private vehicles are 404 to non-viewers.
+- `POST /api/auth/register` is limited to 10 / hour / IP; credential login is limited per email+IP and per IP. Limiter is in-memory (per instance) — move to Redis before scaling out.
+- Emails are normalized to lowercase. Emails are only returned to the account owner and admins.
+- Photo uploads: storage key = `vehicles/{vehicleId}/{userId}/{ts}-{uuid}.{ext}` (extension from validated MIME type). The presigned PUT signs `Content-Length` and `Content-Type`. Finalize checks key ownership, `HeadObject` size/type, and rejects replays (unique `storageKey`).
+- Moderators/admins can view private vehicles (API and pages).
+- `src/proxy.ts` blocks cross-origin state-changing `/api/*` requests that carry a mismatching `Origin`. Security headers are set in `next.config.ts`.
+- Seed: `SEED_ADMIN_PASSWORD` is required in production; re-running the seed no longer resets the admin password.
+- Deploy: apply migration `20261113000001_p0_hardening` (`prisma migrate deploy`). It lowercases existing emails — resolve case-duplicate accounts first.
+- Windows note: run `npm test` from a path with an uppercase drive letter (`D:\...`); a lowercase `d:` cwd duplicates the vitest module instance and every suite fails with `Cannot read properties of undefined (reading 'config')`.

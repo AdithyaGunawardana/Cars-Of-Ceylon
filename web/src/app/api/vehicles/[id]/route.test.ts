@@ -50,6 +50,26 @@ describe("/api/vehicles/:id route", () => {
       expect(payload.error).toBe("Vehicle not found");
     });
 
+    it.each([
+      ["owner", { id: "u-owner", role: "USER" }],
+      ["moderator", { id: "m1", role: "MODERATOR" }],
+      ["admin", { id: "a1", role: "ADMIN" }],
+    ])("returns private vehicle to %s", async (_label, viewer) => {
+      vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({
+        id: "v1",
+        visibility: "PRIVATE",
+        createdByUserId: "u-owner",
+      } as never);
+      vi.mocked(getAuthSession).mockResolvedValue({ user: { id: viewer.id } } as never);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(viewer as never);
+
+      const response = await GET(new Request("http://localhost/api/vehicles/v1"), {
+        params: Promise.resolve({ id: "v1" }),
+      });
+
+      expect(response.status).toBe(200);
+    });
+
     it("returns vehicle detail payload for public record", async () => {
       vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({
         id: "v1",

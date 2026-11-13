@@ -17,11 +17,13 @@ vi.mock("bcryptjs", () => ({
 }));
 
 import { prisma } from "@/lib/prisma";
+import { resetRateLimits } from "@/lib/rate-limit";
 import { POST } from "./route";
 
 describe("POST /api/auth/register", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetRateLimits();
   });
 
   it("returns 400 for invalid registration data", async () => {
@@ -93,5 +95,41 @@ describe("POST /api/auth/register", () => {
         }),
       }),
     );
+  });
+
+  function registerRequest(email: string, ip = "9.9.9.9") {
+    return new Request("http://localhost/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-forwarded-for": ip },
+      body: JSON.stringify({ name: "Jane", email, password: "password123" }),
+    });
+  }
+
+  it("normalizes email to lowercase before lookup and storage", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.user.create).mockResolvedValue({ id: "u-new" } as never);
+
+    const response = await POST(registerRequest("  Jane@Example.COM "));
+
+    expect(response.status).toBe(201);
+    expect(prisma.user.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { email: "jane@example.com" } }));
+    expect(prisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ email: "jane@example.com" }) }),
+    );
+  });
+
+  it("returns 429 after 10 attempts from one IP within the window", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1" } as never);
+
+    for (let i = 0; i < 10; i += 1) {
+      expect((await POST(registerRequest(`a${i}@example.com`))).status).toBe(409);
+    }
+
+    const blocked = await POST(registerRequest("late@example.com"));
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get("Retry-After"))).toBeGreaterThan(0);
+
+    // A different IP is unaffected.
+    expect((await POST(registerRequest("other@example.com", "8.8.8.8"))).status).toBe(409);
   });
 });

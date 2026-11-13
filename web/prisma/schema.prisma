@@ -108,7 +108,7 @@ model VehiclePhoto {
   id           String    @id @default(cuid())
   vehicleId    String
   userId       String
-  storageKey   String
+  storageKey   String    @unique
   url          String
   caption      String?
   createdAt    DateTime  @default(now())
@@ -138,6 +138,7 @@ model Report {
   vehicleId      String
   createdById    String
   moderatedById  String?
+  moderatedAt    DateTime?
   reason         String
   status         ReportStatus @default(PENDING)
   createdAt      DateTime     @default(now())

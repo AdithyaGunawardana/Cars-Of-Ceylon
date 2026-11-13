@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/auth";
+import { canManageVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { updateVehicleEventRequestSchema, vehicleIdParamsSchema } from "@/lib/contracts/vehicle-contracts";
 
@@ -54,9 +55,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const canManage =
-    vehicle.createdByUserId === currentUser.id || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-  if (!canManage) {
+  if (!canManageVehicle(currentUser, vehicle)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -107,9 +106,7 @@ export async function DELETE(_request: Request, context: { params: Promise<{ id:
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const canManage =
-    vehicle.createdByUserId === currentUser.id || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-  if (!canManage) {
+  if (!canManageVehicle(currentUser, vehicle)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

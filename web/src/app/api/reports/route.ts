@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/auth";
 import { listReportsQuerySchema, createReportRequestSchema } from "@/lib/contracts/report-contracts";
+import { canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
+
+const REPORT_LIMIT = 5;
+const REPORT_WINDOW_MS = 15 * 60 * 1000;
 
 // Allows authenticated users to file reports and moderators to review report queues.
 export async function GET(request: Request) {
@@ -79,6 +84,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Per-user throttle: 5 reports per 15 minutes.
+  const limit = rateLimit(`report:${session.user.id}`, REPORT_LIMIT, REPORT_WINDOW_MS);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many reports. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
+
   const payload = await request.json().catch(() => null);
   const parsedBody = createReportRequestSchema.safeParse(payload);
 
@@ -88,11 +102,26 @@ export async function POST(request: Request) {
 
   const vehicle = await prisma.vehicle.findUnique({
     where: { id: parsedBody.data.vehicleId },
-    select: { id: true },
+    select: { id: true, visibility: true, createdByUserId: true },
   });
 
-  if (!vehicle) {
+  // Private vehicles are invisible to non-owners, so reporting them must look like "not found".
+  const reporter = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } });
+  if (!reporter) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!vehicle || !canViewVehicle(reporter, vehicle)) {
     return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
+  }
+
+  // One open report per user per vehicle prevents queue spam.
+  const openReport = await prisma.report.findFirst({
+    where: { vehicleId: vehicle.id, createdById: reporter.id, status: { in: ["PENDING", "REVIEWING"] } },
+    select: { id: true },
+  });
+  if (openReport) {
+    return NextResponse.json({ error: "You already have an open report for this vehicle." }, { status: 409 });
   }
 
   const report = await prisma.report.create({

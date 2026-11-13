@@ -24,6 +24,10 @@ export async function loadUserProfile(profileUserId: string, viewerUserId?: stri
     return null;
   }
 
+  // Email is private: only the account owner and admins may see it.
+  const canSeeEmail = Boolean(viewer && (viewer.id === profileUserId || viewer.role === "ADMIN"));
+  const publicUser = { ...user, email: canSeeEmail ? user.email : null };
+
   const canSeePrivateVehicles = Boolean(
     viewer && (viewer.id === profileUserId || viewer.role === "MODERATOR" || viewer.role === "ADMIN"),
   );
@@ -51,7 +55,7 @@ export async function loadUserProfile(profileUserId: string, viewerUserId?: stri
   ]);
 
   return {
-    user,
+    user: publicUser,
     stats: {
       vehicleCount: vehicles.length,
       followerCount,

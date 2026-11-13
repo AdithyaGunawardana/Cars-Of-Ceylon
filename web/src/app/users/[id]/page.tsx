@@ -28,7 +28,7 @@ export default async function UserProfilePage({
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-[#725a39]">Community profile</p>
             <h1 className="font-serif text-3xl text-[#271310]">{profile.user.name ?? "User profile"}</h1>
-            <p className="mt-2 text-sm text-[#504442]">{profile.user.email ?? "No email available"}</p>
+            {profile.user.email ? <p className="mt-2 text-sm text-[#504442]">{profile.user.email}</p> : null}
             {profile.user.profile && typeof profile.user.profile === "object" ? (
               <p className="mt-3 text-sm text-[#271310]">
                 {(profile.user.profile as { bio?: string }).bio ?? "No bio added yet."}
