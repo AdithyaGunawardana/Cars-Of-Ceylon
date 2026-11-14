@@ -35,18 +35,29 @@ Source of truth for remaining work. Derived from the 2026-11-13 repo audit. Upda
 - [x] The ad-hoc live-stack script is superseded by the integration + E2E suites
 - Bugs the new tests found and fixed: duplicate vehicle create returned 500 (now 409); nav stayed on "Sign In" after login; create-vehicle redirect was swallowed by a try/catch; report form hung after submit (`event.currentTarget` read after `await`)
 
-## P3 - Features needed to call it complete
-- [x] Profile editing (name, bio, avatar URL) and change password: `/account`, `GET/PATCH /api/account`, `POST /api/account/password` (rate limited)
-- [ ] Password reset and email verification (blocked: needs an email provider; avatar file upload still URL-only)
-- [x] Vehicle soft delete + restore, moderation audit log (`ModerationLog`, `/moderation/log`), orphaned S3 object cleanup and 30-day purge (`npm run storage:cleanup`, dry-run by default)
-- [x] Moderation actions beyond status changes: hide/unhide vehicle, photo, event; ban/unban user (immediate, DB-checked)
-  - Not yet in the UI: hide buttons on individual photos/events (API only), a "deleted vehicles" list for owners, scheduling `storage:cleanup`
-  - Moderation UI (hide/restore/ban controls, log page) is covered by API tests but not yet by a browser E2E
-- [ ] Discovery: full-text search, sorting, year range, follow feed
-- [ ] Use `attributes` JSON in forms and filters
-- [ ] SEO (`generateMetadata`, sitemap, OG images); `error.tsx`, `not-found.tsx`, `loading.tsx`
-- [ ] S3/R2 production buckets need a CORS rule allowing `PUT` from the site origin (MinIO allows it by default, which is why the browser E2E passes)
-- [ ] Real landing page; one UI theme everywhere (moderation + login pages still partly use the old zinc theme)
+## P3 - Features needed to call it complete (DONE in code; 3 deploy-time actions below)
+- [x] Profile editing (name, bio, avatar upload or link), account settings, change password
+- [x] Password reset (emailed single-use hashed token, 1h, rate limited, no account enumeration, signs out older sessions) and email verification (24h token, confirm is a POST so scanners cannot burn it)
+- [x] Vehicle soft delete + restore (`/account/vehicles`), moderation audit log (`/moderation/log`), orphaned S3 object cleanup (photos and avatars) and 30-day purge (`npm run storage:cleanup`)
+- [x] Moderation actions: hide/unhide vehicle, photo, event (buttons in the UI); ban/unban user (immediate, DB-checked, blocks login)
+- [x] Discovery: ranked full-text search (`q`, includes timeline text, partial words), sorting, year range, follow feed (`/feed`, `GET /api/feed`)
+- [x] `attributes` JSON: validated schema (colour, fuel, transmission, body type, engine cc, odometer) used by the create/edit forms, detail page and list filters
+- [x] SEO: `generateMetadata` for vehicles and profiles (non-public records are `noindex` and never described), `sitemap.xml`, `robots.txt`, Open Graph images (site and per vehicle); `error.tsx`, `not-found.tsx`, `loading.tsx` (list page only, see note)
+- [x] S3/R2 CORS: `npm run storage:cors` builds and applies the rule (wildcards refused); documented in `web/README.md`
+- [x] Real landing page with live statistics; one UI theme everywhere (moderation pages and forms migrated off zinc/amber)
+- [x] Browser E2E for the new UI (`tests/e2e/moderation-discovery.spec.ts`)
+
+Things only you can do (the code cannot):
+- Set `SMTP_URL` and `MAIL_FROM` in production, otherwise reset/verification emails are not delivered (development prints them to the server log).
+- Run `UPLOAD_CORS_ORIGINS=https://your-site npm run storage:cors` once against the real S3/R2 bucket. It could not be verified here: local MinIO does not implement per-bucket CORS (it returns `NotImplemented`).
+- Schedule `npm run storage:cleanup -- --apply` (daily is fine) in your production scheduler.
+
+Design notes and known limits:
+- `loading.tsx` exists only for the vehicle list (route group `vehicles/(list)`). A `loading.tsx` above a page that can call `notFound()` makes Next stream a 200 first, which turns missing or hidden vehicles into soft 404s.
+- Email verification does not gate any feature yet (existing accounts are unverified); the account page shows a notice and a resend button.
+- Changing your password while signed in does not sign out your other sessions (a password *reset* does).
+- A soft-deleted vehicle keeps its unique identifier and plate until purged, so re-adding the same plate gives 409 for up to 30 days.
+- Full-text search matches with ILIKE as well as `tsvector`, so it scans the public vehicle table; fine for thousands of rows, add a GIN index/materialized document before it reaches hundreds of thousands.
 
 ## P4 - Mobile
 - [ ] Fix tsconfig (`ignoreDeprecations`), align deps with Expo 53 (`npx expo install --fix`), add ESLint config

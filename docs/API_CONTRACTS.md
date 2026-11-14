@@ -679,6 +679,31 @@ interface CreateVehicleRequest {
 - CORS is configured for web only; mobile uses direct token auth
 
 
+## Account, recovery and discovery (P3)
+
+```
+GET   /api/account                               -> 200 { user: { id, name, email, image, bio } }
+PATCH /api/account       { name?, bio?, image? }  -> 200 (image: http(s) URL, "" or null clears; changing it retires an uploaded avatar)
+POST  /api/account/password { currentPassword, newPassword }   -> 200 | 403 wrong password | 429
+POST  /api/account/avatar/upload-url { fileType, fileSize<=5MB } -> 200 { uploadUrl, storageKey }
+POST  /api/account/avatar/finalize   { storageKey }             -> 200 { image }
+POST  /api/auth/password/forgot { email }  -> always 200 { ok: true } (never reveals whether the address exists)
+POST  /api/auth/password/reset  { token, password } -> 200 | 400 invalid/expired/used token
+POST  /api/auth/verify/send                -> 200 | 409 already verified | 429   (authenticated)
+POST  /api/auth/verify/confirm { token }   -> 200 { ok, alreadyVerified } | 400
+GET   /api/feed ?page&pageSize(<=50)        -> 200 { items[{ kind: VEHICLE|EVENT|PHOTO, id, createdAt, actor, vehicle, ... }], pagination, followingCount }
+```
+
+Vehicle list filters (`GET /api/vehicles`): `q` (full text over make, model, identifier, plate, description and timeline text,
+ranked; partial words match), `sort` = `newest|oldest|year_desc|year_asc|name|relevance` (defaults to `relevance` with `q`),
+`yearFrom`/`yearTo`, and attribute filters `color` (contains), `fuelType`, `transmission`, `bodyType`.
+
+Vehicle `attributes` (create/update, `null` clears): `{ color?, fuelType?, transmission?, bodyType?, engineCc?, odometerKm? }`
+with `fuelType` in `PETROL|DIESEL|HYBRID|ELECTRIC|LPG|OTHER`, `transmission` in `MANUAL|AUTOMATIC|OTHER`, `bodyType` in
+`SEDAN|HATCHBACK|SUV|WAGON|COUPE|CONVERTIBLE|VAN|PICKUP|TRUCK|MOTORCYCLE|OTHER`. Unknown keys are rejected with 400.
+
+Password reset signs out sessions issued before the reset (`401`), and reset/verification tokens are single use and stored hashed.
+
 ## Moderation safety (P3)
 
 All endpoints require a moderator/admin session, return 403 otherwise, and write an append-only `ModerationLog` row in the same transaction.

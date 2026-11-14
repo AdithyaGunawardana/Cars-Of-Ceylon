@@ -22,8 +22,10 @@ export async function createUser(role: UserRole = "USER", name = "Test User"): P
   return { id: user.id, email, name, role };
 }
 
-export function actAs(user: Pick<TestUser, "id"> | null) {
+// `issuedAt` simulates the JWT issue time (ms) so session invalidation can be tested.
+export function actAs(user: Pick<TestUser, "id"> | null, issuedAt?: number) {
   (globalThis as { __testUserId?: string | null }).__testUserId = user?.id ?? null;
+  (globalThis as { __testIssuedAt?: number }).__testIssuedAt = issuedAt;
 }
 
 type CallOptions = { method?: string; json?: unknown; query?: Record<string, string | number>; headers?: Record<string, string> };

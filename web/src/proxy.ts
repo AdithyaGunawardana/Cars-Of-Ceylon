@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 // Block cross-site state-changing API calls. Native mobile clients send no Origin header and pass through.
-// NextAuth endpoints (/api/auth/*) have their own CSRF token and are excluded.
+// NextAuth endpoints (callback, signin, signout, session, csrf, ...) have their own CSRF token and are excluded.
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 export function proxy(request: NextRequest) {
@@ -40,5 +40,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/((?!auth/).*)"],
+  // Only NextAuth's own routes are exempt; our /api/auth/register, /password/* and /verify/* endpoints are guarded.
+  matcher: ["/api/((?!auth/(?:callback|signin|signout|session|csrf|providers|error|_log)).*)"],
 };

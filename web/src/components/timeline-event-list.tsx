@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { HideContentControl } from "@/components/moderation-actions";
 import {
   EVENT_TYPE_OPTIONS,
   dangerButtonClass,
@@ -23,19 +24,22 @@ export type TimelineEvent = {
   sourceUrl: string | null;
   occurredAt: string | null;
   createdAt: string;
+  hiddenAt?: string | null;
 };
 
 type Props = {
   vehicleId: string;
   events: TimelineEvent[];
   canManage: boolean;
+  // Moderators/admins get hide/unhide controls (the API re-checks the role).
+  canModerate?: boolean;
 };
 
 const typeLabels: Record<string, string> = Object.fromEntries(EVENT_TYPE_OPTIONS.map((o) => [o.value, o.label]));
 typeLabels.CREATED = "Created";
 
 // Timeline with inline edit/delete controls for users who can manage the vehicle.
-export function TimelineEventList({ vehicleId, events, canManage }: Props) {
+export function TimelineEventList({ vehicleId, events, canManage, canModerate = false }: Props) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -205,7 +209,17 @@ export function TimelineEventList({ vehicleId, events, canManage }: Props) {
                     </div>
                   ) : null}
                 </div>
+                {event.hiddenAt ? (
+                  <p className="mt-2 w-fit rounded-full bg-[#fff7e6] px-3 py-1 text-xs text-[#725a39] ring-1 ring-[#d3c3c0]/70">
+                    Hidden from the public
+                  </p>
+                ) : null}
                 <p className="mt-2 text-sm text-[#504442]">{event.details ?? "No details provided."}</p>
+                {canModerate ? (
+                  <div className="mt-2">
+                    <HideContentControl targetType="EVENT" targetId={event.id} hidden={Boolean(event.hiddenAt)} />
+                  </div>
+                ) : null}
                 {isHttpUrl(event.sourceUrl) ? (
                   <a
                     href={event.sourceUrl}

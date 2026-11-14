@@ -148,6 +148,7 @@ export default async function VehicleDetailPage({
           <TimelineEventList
             vehicleId={vehicle.id}
             canManage={canContribute}
+            canModerate={viewerIsModerator}
             events={vehicle.events.map((event) => ({
               id: event.id,
               type: event.type,
@@ -156,6 +157,7 @@ export default async function VehicleDetailPage({
               sourceUrl: event.sourceUrl,
               occurredAt: event.occurredAt?.toISOString() ?? null,
               createdAt: event.createdAt.toISOString(),
+              hiddenAt: event.hiddenAt?.toISOString() ?? null,
             }))}
           />
         </div>
@@ -174,7 +176,13 @@ export default async function VehicleDetailPage({
           vehicleId={vehicle.id}
           vehicleName={`${vehicle.manufacturer} ${vehicle.model}`}
           canManage={canContribute}
-          photos={vehicle.photos.map((photo) => ({ id: photo.id, url: photo.url, caption: photo.caption }))}
+          canModerate={viewerIsModerator}
+          photos={vehicle.photos.map((photo) => ({
+            id: photo.id,
+            url: photo.url,
+            caption: photo.caption,
+            hiddenAt: photo.hiddenAt?.toISOString() ?? null,
+          }))}
         />
         <div className="mt-6">
           <PhotoUploadForm

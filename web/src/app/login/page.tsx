@@ -84,6 +84,9 @@ function LoginPageContent() {
         </form>
 
         <p className="mt-4 text-sm text-[#504442]">
+          <Link href="/forgot-password" className="font-semibold text-[#725a39] hover:text-[#271310]">Forgot your password?</Link>
+        </p>
+        <p className="mt-2 text-sm text-[#504442]">
           No account yet? <Link href="/register" className="font-semibold text-[#725a39] hover:text-[#271310]">Create one</Link>
         </p>
       </div>

@@ -19,7 +19,14 @@ async function main() {
 
 main()
   .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
+  .catch((error: { Code?: string; name?: string; message?: string }) => {
+    if (error?.Code === "NotImplemented") {
+      console.error(
+        "This storage server does not support per-bucket CORS (MinIO configures CORS globally, e.g. MINIO_API_CORS_ALLOW_ORIGIN).\n" +
+          "Use this script against AWS S3 or Cloudflare R2.",
+      );
+    } else {
+      console.error(error);
+    }
     process.exit(1);
   });

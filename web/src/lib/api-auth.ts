@@ -17,8 +17,15 @@ export async function requireSession(): Promise<Guard<{ userId: string }>> {
   if (!session?.user?.id) {
     return { ok: false, response: errorResponse("Unauthorized", 401) };
   }
-  const account = await prisma.user.findUnique({ where: { id: session.user.id }, select: { bannedAt: true } });
+  const account = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { bannedAt: true, sessionsValidAfter: true },
+  });
   if (!account) {
+    return { ok: false, response: errorResponse("Unauthorized", 401) };
+  }
+  // A password reset signs out every session that was issued before it.
+  if (account.sessionsValidAfter && session.issuedAt !== undefined && session.issuedAt < account.sessionsValidAfter.getTime()) {
     return { ok: false, response: errorResponse("Unauthorized", 401) };
   }
   if (account.bannedAt) {

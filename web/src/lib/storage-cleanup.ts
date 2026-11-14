@@ -41,26 +41,38 @@ async function deleteObjects(s3: S3Client, bucket: string, keys: string[]) {
 export async function findOrphanedObjects(options: Pick<CleanupOptions, "s3" | "bucket" | "orphanGraceMs" | "now">) {
   const cutoff = (options.now ?? new Date()).getTime() - (options.orphanGraceMs ?? DEFAULT_ORPHAN_GRACE_MS);
   const orphans: string[] = [];
-  let continuationToken: string | undefined;
 
-  do {
-    const page = await options.s3.send(
-      new ListObjectsV2Command({ Bucket: options.bucket, Prefix: "vehicles/", ContinuationToken: continuationToken }),
-    );
-    const candidates = (page.Contents ?? [])
-      .filter((object) => object.Key && object.LastModified && object.LastModified.getTime() < cutoff)
-      .map((object) => object.Key!);
+  // Photos live under vehicles/, user avatars under avatars/; each prefix is checked against its own table.
+  for (const prefix of ["vehicles/", "avatars/"] as const) {
+    let continuationToken: string | undefined;
+    do {
+      const page = await options.s3.send(
+        new ListObjectsV2Command({ Bucket: options.bucket, Prefix: prefix, ContinuationToken: continuationToken }),
+      );
+      const candidates = (page.Contents ?? [])
+        .filter((object) => object.Key && object.LastModified && object.LastModified.getTime() < cutoff)
+        .map((object) => object.Key!);
 
-    if (candidates.length > 0) {
-      const referenced = await prisma.vehiclePhoto.findMany({
-        where: { storageKey: { in: candidates } },
-        select: { storageKey: true },
-      });
-      const referencedKeys = new Set(referenced.map((photo) => photo.storageKey));
-      orphans.push(...candidates.filter((key) => !referencedKeys.has(key)));
-    }
-    continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
-  } while (continuationToken);
+      if (candidates.length > 0) {
+        let referencedKeys: Set<string>;
+        if (prefix === "vehicles/") {
+          const photos = await prisma.vehiclePhoto.findMany({
+            where: { storageKey: { in: candidates } },
+            select: { storageKey: true },
+          });
+          referencedKeys = new Set(photos.map((photo) => photo.storageKey));
+        } else {
+          const users = await prisma.user.findMany({
+            where: { avatarKey: { in: candidates } },
+            select: { avatarKey: true },
+          });
+          referencedKeys = new Set(users.flatMap((user) => (user.avatarKey ? [user.avatarKey] : [])));
+        }
+        orphans.push(...candidates.filter((key) => !referencedKeys.has(key)));
+      }
+      continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (continuationToken);
+  }
 
   return orphans;
 }

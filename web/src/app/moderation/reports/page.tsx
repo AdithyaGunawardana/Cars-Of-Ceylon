@@ -14,11 +14,11 @@ export default async function ModerationReportsPage({
   if (!session?.user?.id) {
     return (
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-6 py-10 md:px-10">
-        <h1 className="text-3xl font-bold text-zinc-100">Moderation Reports</h1>
-        <p className="text-sm text-zinc-300">You need to sign in to access moderation tools.</p>
+        <h1 className="font-serif text-3xl text-[#271310]">Moderation Reports</h1>
+        <p className="text-sm text-[#504442]">You need to sign in to access moderation tools.</p>
         <Link
-          href="/api/auth/signin?callbackUrl=/moderation/reports"
-          className="w-fit rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-amber-300"
+          href="/login?callbackUrl=/moderation/reports"
+          className="w-fit rounded-full bg-[#271310] px-4 py-2 text-sm font-semibold text-[#fbfaee] hover:bg-[#3e2723]"
         >
           Sign in
         </Link>
@@ -34,8 +34,8 @@ export default async function ModerationReportsPage({
   if (!currentUser || (currentUser.role !== "MODERATOR" && currentUser.role !== "ADMIN")) {
     return (
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-6 py-10 md:px-10">
-        <h1 className="text-3xl font-bold text-zinc-100">Moderation Reports</h1>
-        <p className="rounded-md border border-red-700 bg-red-950/60 px-3 py-2 text-sm text-red-200">
+        <h1 className="font-serif text-3xl text-[#271310]">Moderation Reports</h1>
+        <p className="rounded-full bg-[#fff0ef] px-4 py-2 text-sm text-[#9e2a2b] ring-1 ring-[#d3c3c0]/70">
           You do not have permission to access this page.
         </p>
       </main>
@@ -53,21 +53,24 @@ export default async function ModerationReportsPage({
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10 md:px-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold text-zinc-100">Moderation Reports</h1>
+        <h1 className="font-serif text-3xl text-[#271310]">Moderation Reports</h1>
         <div className="flex flex-wrap gap-2 text-xs">
-          <Link href="/moderation/reports" className="rounded-md border border-zinc-700 px-3 py-1 text-zinc-200 hover:bg-zinc-800">
+          <Link href="/moderation/reports" className="rounded-full border border-[#d3c3c0] px-3 py-1 text-[#271310] hover:bg-[#f5f4e8]">
             All
           </Link>
-          <Link href="/moderation/reports?status=PENDING" className="rounded-md border border-zinc-700 px-3 py-1 text-zinc-200 hover:bg-zinc-800">
+          <Link href="/moderation/reports?status=PENDING" className="rounded-full border border-[#d3c3c0] px-3 py-1 text-[#271310] hover:bg-[#f5f4e8]">
             Pending
           </Link>
-          <Link href="/moderation/reports?status=REVIEWING" className="rounded-md border border-zinc-700 px-3 py-1 text-zinc-200 hover:bg-zinc-800">
+          <Link href="/moderation/reports?status=REVIEWING" className="rounded-full border border-[#d3c3c0] px-3 py-1 text-[#271310] hover:bg-[#f5f4e8]">
             Reviewing
           </Link>
-          <Link href="/moderation/reports?status=RESOLVED" className="rounded-md border border-zinc-700 px-3 py-1 text-zinc-200 hover:bg-zinc-800">
+          <Link href="/moderation/reports?status=RESOLVED" className="rounded-full border border-[#d3c3c0] px-3 py-1 text-[#271310] hover:bg-[#f5f4e8]">
             Resolved
           </Link>
-          <Link href="/moderation/reports?status=REJECTED" className="rounded-md border border-zinc-700 px-3 py-1 text-zinc-200 hover:bg-zinc-800">
+          <Link href="/moderation/log" className="rounded-full bg-[#271310] px-3 py-1 text-[#fbfaee] hover:bg-[#3e2723]">
+            Audit log
+          </Link>
+          <Link href="/moderation/reports?status=REJECTED" className="rounded-full border border-[#d3c3c0] px-3 py-1 text-[#271310] hover:bg-[#f5f4e8]">
             Rejected
           </Link>
         </div>
@@ -75,20 +78,20 @@ export default async function ModerationReportsPage({
 
       <ModerationReportsBoard reports={items} />
 
-      <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-sm text-zinc-300">
+      <div className="flex items-center justify-between rounded-full bg-[#f5f4e8] px-5 py-3 text-sm text-[#504442] ring-1 ring-[#d3c3c0]/70">
         <p>
           Page {safePage} of {totalPages} ({total} total)
         </p>
         <div className="flex gap-2">
           <Link
             href={`/moderation/reports?page=${Math.max(1, safePage - 1)}${status ? `&status=${status}` : ""}`}
-            className="rounded-md border border-zinc-700 px-3 py-1 hover:bg-zinc-800"
+            className="rounded-full border border-[#d3c3c0] px-3 py-1 hover:bg-white"
           >
             Previous
           </Link>
           <Link
             href={`/moderation/reports?page=${Math.min(totalPages, safePage + 1)}${status ? `&status=${status}` : ""}`}
-            className="rounded-md border border-zinc-700 px-3 py-1 hover:bg-zinc-800"
+            className="rounded-full border border-[#d3c3c0] px-3 py-1 hover:bg-white"
           >
             Next
           </Link>

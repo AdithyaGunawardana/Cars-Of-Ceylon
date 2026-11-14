@@ -61,7 +61,11 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 ## Current API Foundation
 
 - `POST /api/auth/register`
-- `GET /api/vehicles`
+- `POST /api/auth/password/forgot`, `POST /api/auth/password/reset` (emailed single-use token; resets sign out older sessions)
+- `POST /api/auth/verify/send` (authenticated), `POST /api/auth/verify/confirm`
+- `GET|PATCH /api/account`, `POST /api/account/password`, `POST /api/account/avatar/upload-url`, `POST /api/account/avatar/finalize`
+- `GET /api/feed` (authenticated; activity from people you follow)
+- `GET /api/vehicles` (filters: `q` full-text, `search`, `manufacturer`, `model`, `year`, `yearFrom`, `yearTo`, `sort`, `color`, `fuelType`, `transmission`, `bodyType`, `page`, `pageSize`)
 - `POST /api/vehicles` (authenticated)
 - `GET /api/vehicles/:id`
 - `PATCH /api/vehicles/:id` (authenticated, owner/moderator/admin)
@@ -79,12 +83,11 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 
 ## Current Web Routes
 
-- `/vehicles`
-- `/vehicles/[id]`
-- `/vehicles/new`
-- `/moderation/reports` (moderator/admin)
-- `/login`
-- `/register`
+- `/` (landing page with live archive statistics), `/vehicles`, `/vehicles/[id]`, `/vehicles/new`, `/users/[id]`
+- `/feed` (people you follow), `/account` (profile, avatar, password, email verification), `/account/vehicles` (restore deleted vehicles)
+- `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`
+- `/moderation/reports`, `/moderation/log` (moderator/admin)
+- `/sitemap.xml`, `/robots.txt`, per-vehicle Open Graph images
 
 The global top navigation now links to Moderation for moderator/admin users only.
 
@@ -124,6 +127,32 @@ Current upload limits:
 - Max size: 10 MB
 
 For Docker Compose, these variables are already configured to use the local MinIO bucket `cars-of-ceylon`.
+
+### Production bucket CORS
+
+Browsers upload straight to the bucket with a presigned `PUT`, so on AWS S3 / Cloudflare R2 the bucket must allow your site origin
+(MinIO allows it by default, which is why local development works without this). Apply the rule with:
+
+```
+UPLOAD_CORS_ORIGINS=https://cars.example.com npm run storage:cors
+```
+
+The script refuses wildcard origins and prints the rules the provider reports back. It is not supported by MinIO (set
+`MINIO_API_CORS_ALLOW_ORIGIN` there instead).
+
+### Scheduled maintenance
+
+`npm run storage:cleanup -- --apply` removes unreferenced photo/avatar uploads (older than 24h) and permanently purges vehicles that
+have been soft-deleted for 30+ days. Run it daily from your scheduler (cron, a platform scheduled job, or a CI schedule) with the
+production `DATABASE_URL` and `UPLOAD_S3_*` variables; run without `--apply` first to review the report.
+
+## Email Configuration
+
+Password reset and email verification send mail through `src/lib/mailer.ts`:
+
+- `SMTP_URL` (for example `smtps://user:pass@smtp.example.com:465`) and `MAIL_FROM` enable real delivery via nodemailer.
+- Without `SMTP_URL`, development prints the message (including the link) to the server log; production logs an error and sends nothing.
+- Links use `AUTH_URL` (or `NEXT_PUBLIC_SITE_URL`) as the site origin.
 
 ## API Smoke Check
 

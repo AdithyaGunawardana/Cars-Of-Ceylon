@@ -27,6 +27,18 @@ export function buildStorageKeyPrefix(vehicleId: string, userId: string) {
   return `vehicles/${vehicleId}/${userId}/`;
 }
 
+// Avatars live under avatars/<userId>/ and are replaced (not accumulated) when the user uploads a new one.
+export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+
+export function buildAvatarKeyPrefix(userId: string) {
+  return `avatars/${userId}/`;
+}
+
+export function isValidAvatarKey(storageKey: string, userId: string) {
+  const prefix = buildAvatarKeyPrefix(userId);
+  return storageKey.startsWith(prefix) && KEY_TAIL_PATTERN.test(storageKey.slice(prefix.length));
+}
+
 const KEY_TAIL_PATTERN = /^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
 
 export function isValidStorageKey(storageKey: string, vehicleId: string, userId: string) {

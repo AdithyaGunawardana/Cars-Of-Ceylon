@@ -54,7 +54,7 @@ export default async function UserProfilePage({
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 md:px-10">
-      <Link href="/vehicles" className="text-sm font-semibold text-amber-300 hover:text-amber-200">
+      <Link href="/vehicles" className="text-sm font-semibold text-[#725a39] hover:text-[#271310]">
         Back to vehicles
       </Link>
 
