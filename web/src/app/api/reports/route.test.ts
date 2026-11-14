@@ -15,18 +15,21 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
       count: vi.fn(),
       create: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
 
 import { getAuthSession } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { resetRateLimits } from "@/lib/rate-limit";
 import { GET, POST } from "./route";
 
 describe("/api/reports route", () => {
   beforeEach(() => {
     // Keep every scenario isolated by clearing mock state.
     vi.clearAllMocks();
+    resetRateLimits();
   });
 
   describe("GET /api/reports", () => {
@@ -105,6 +108,7 @@ describe("/api/reports route", () => {
 
     it("returns 404 when vehicle does not exist", async () => {
       vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER" } as never);
       vi.mocked(prisma.vehicle.findUnique).mockResolvedValue(null as never);
 
       const request = new Request("http://localhost/api/reports", {
@@ -123,7 +127,9 @@ describe("/api/reports route", () => {
 
     it("creates a report for authenticated users", async () => {
       vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
-      vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1" } as never);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER" } as never);
+      vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1", visibility: "PUBLIC", createdByUserId: "o1" } as never);
+      vi.mocked(prisma.report.findFirst).mockResolvedValue(null as never);
       vi.mocked(prisma.report.create).mockResolvedValue({ id: "r1" } as never);
 
       const request = new Request("http://localhost/api/reports", {
@@ -147,6 +153,56 @@ describe("/api/reports route", () => {
           },
         }),
       );
+    });
+
+    function reportRequest() {
+      return new Request("http://localhost/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vehicleId: "v1", reason: "This timeline includes unverified data." }),
+      });
+    }
+
+    it("returns 404 for private vehicles the reporter cannot view", async () => {
+      vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER" } as never);
+      vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1", visibility: "PRIVATE", createdByUserId: "o1" } as never);
+
+      const response = await POST(reportRequest());
+
+      expect(response.status).toBe(404);
+      expect(prisma.report.create).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when the user already has an open report for the vehicle", async () => {
+      vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER" } as never);
+      vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1", visibility: "PUBLIC", createdByUserId: "o1" } as never);
+      vi.mocked(prisma.report.findFirst).mockResolvedValue({ id: "r0" } as never);
+
+      const response = await POST(reportRequest());
+
+      expect(response.status).toBe(409);
+      expect(prisma.report.create).not.toHaveBeenCalled();
+    });
+
+    it("returns 429 with Retry-After after 5 reports in the window", async () => {
+      vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER" } as never);
+      vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1", visibility: "PUBLIC", createdByUserId: "o1" } as never);
+      vi.mocked(prisma.report.findFirst).mockResolvedValue(null as never);
+      vi.mocked(prisma.report.create).mockResolvedValue({ id: "r1" } as never);
+
+      for (let i = 0; i < 5; i += 1) {
+        expect((await POST(reportRequest())).status).toBe(201);
+      }
+
+      const blocked = await POST(reportRequest());
+      const payload = await blocked.json();
+
+      expect(blocked.status).toBe(429);
+      expect(Number(blocked.headers.get("Retry-After"))).toBeGreaterThan(0);
+      expect(apiErrorSchema.safeParse(payload).success).toBe(true);
     });
   });
 });

@@ -33,5 +33,20 @@ export const photoFinalizeSuccessSchema = z.object({
   photo: z.object({ id: z.string().min(1) }).passthrough(),
 });
 
+// Route params for single-photo operations.
+export const photoIdParamsSchema = z.object({
+  id: z.string().min(1),
+  photoId: z.string().min(1),
+});
+
+// Contract for editing photo metadata. Caption null/empty clears it.
+export const updatePhotoRequestSchema = z.object({
+  caption: z.string().trim().max(500).nullable(),
+});
+
+export const updatePhotoSuccessSchema = z.object({
+  photo: z.object({ id: z.string().min(1) }).passthrough(),
+});
+
 // Alias the shared API error schema for route-specific semantic clarity.
 export const photoApiErrorSchema = apiErrorSchema;

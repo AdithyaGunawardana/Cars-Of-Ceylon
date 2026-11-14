@@ -156,7 +156,44 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
     expect(photoUploadUrlSuccessSchema.safeParse(payload).success).toBe(true);
     expect(payload.uploadUrl).toBe("http://localhost:9000/signed-put-url");
     expect(payload.publicUrl).toBe("http://localhost:9000/cars-of-ceylon/vehicles/v1/file.png");
-    expect(payload.storageKey).toContain("vehicles/v1/");
+    expect(payload.storageKey).toMatch(/^vehicles\/v1\/u1\/\d+-[0-9a-f-]{36}\.png$/);
     expect(payload.maxBytes).toBe(10 * 1024 * 1024);
+  });
+
+  it("ignores the client filename extension and signs the declared size", async () => {
+    vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(prisma.vehicle.findUnique).mockResolvedValue({ id: "v1", createdByUserId: "u1" } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER" } as never);
+    vi.mocked(getUploadStorageConfig).mockReturnValue({
+      endpoint: "http://localhost:9000",
+      region: "us-east-1",
+      bucket: "cars-of-ceylon",
+      accessKeyId: "minioadmin",
+      secretAccessKey: "minioadmin",
+    } as never);
+    vi.mocked(getSignedUrl).mockResolvedValue("http://localhost:9000/signed-put-url" as never);
+    vi.mocked(buildObjectUrl).mockReturnValue("http://localhost:9000/x");
+
+    const request = new Request("http://localhost/api/vehicles/v1/photos/upload-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName: "../../evil.html", fileType: "image/jpeg", fileSize: 4321 }),
+    });
+
+    const response = await POST(request, { params: Promise.resolve({ id: "v1" }) });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.storageKey).toMatch(/\.jpg$/);
+    expect(payload.storageKey).not.toContain("evil");
+
+    const [, command, options] = vi.mocked(getSignedUrl).mock.calls[0] as unknown as [
+      unknown,
+      { input: { ContentLength: number; ContentType: string } },
+      { signableHeaders: Set<string> },
+    ];
+    expect(command.input.ContentLength).toBe(4321);
+    expect(command.input.ContentType).toBe("image/jpeg");
+    expect(options.signableHeaders.has("content-type")).toBe(true);
   });
 });

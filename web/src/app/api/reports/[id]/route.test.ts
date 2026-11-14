@@ -12,7 +12,8 @@ vi.mock("@/lib/prisma", () => ({
     user: { findUnique: vi.fn() },
     report: {
       findUnique: vi.fn(),
-      update: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -81,31 +82,68 @@ describe("PATCH /api/reports/:id", () => {
     expect(payload.error).toBe("Report not found");
   });
 
-  it("updates report status for moderators", async () => {
-    vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "m1" } } as never);
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "m1", role: "MODERATOR" } as never);
-    vi.mocked(prisma.report.findUnique).mockResolvedValue({ id: "r1" } as never);
-    vi.mocked(prisma.report.update).mockResolvedValue({ id: "r1" } as never);
-
-    const request = new Request("http://localhost/api/reports/r1", {
+  function patchRequest(status: string) {
+    return new Request("http://localhost/api/reports/r1", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "RESOLVED" }),
+      body: JSON.stringify({ status }),
     });
+  }
 
-    const response = await PATCH(request, { params: Promise.resolve({ id: "r1" }) });
+  it("moves a PENDING report to REVIEWING and records moderator and timestamp", async () => {
+    vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "m1" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "m1", role: "MODERATOR" } as never);
+    vi.mocked(prisma.report.findUnique).mockResolvedValue({ id: "r1", status: "PENDING" } as never);
+    vi.mocked(prisma.report.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.report.findUniqueOrThrow).mockResolvedValue({ id: "r1", status: "REVIEWING" } as never);
+
+    const response = await PATCH(patchRequest("REVIEWING"), { params: Promise.resolve({ id: "r1" }) });
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(updateReportSuccessSchema.safeParse(payload).success).toBe(true);
-    expect(prisma.report.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "r1" },
-        data: {
-          status: "RESOLVED",
-          moderatedById: "m1",
-        },
-      }),
-    );
+    expect(prisma.report.updateMany).toHaveBeenCalledWith({
+      where: { id: "r1", status: "PENDING" },
+      data: { status: "REVIEWING", moderatedById: "m1", moderatedAt: expect.any(Date) },
+    });
+  });
+
+  it("allows REVIEWING -> RESOLVED", async () => {
+    vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "m1" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "m1", role: "MODERATOR" } as never);
+    vi.mocked(prisma.report.findUnique).mockResolvedValue({ id: "r1", status: "REVIEWING" } as never);
+    vi.mocked(prisma.report.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.report.findUniqueOrThrow).mockResolvedValue({ id: "r1", status: "RESOLVED" } as never);
+
+    const response = await PATCH(patchRequest("RESOLVED"), { params: Promise.resolve({ id: "r1" }) });
+    expect(response.status).toBe(200);
+  });
+
+  it.each([
+    ["PENDING", "RESOLVED"],
+    ["PENDING", "REJECTED"],
+    ["RESOLVED", "REVIEWING"],
+    ["REJECTED", "RESOLVED"],
+    ["REVIEWING", "REVIEWING"],
+  ])("rejects invalid transition %s -> %s with 409", async (from, to) => {
+    vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "m1" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "m1", role: "MODERATOR" } as never);
+    vi.mocked(prisma.report.findUnique).mockResolvedValue({ id: "r1", status: from } as never);
+
+    const response = await PATCH(patchRequest(to), { params: Promise.resolve({ id: "r1" }) });
+
+    expect(response.status).toBe(409);
+    expect(prisma.report.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when another moderator changed the status first", async () => {
+    vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "m1" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "m1", role: "MODERATOR" } as never);
+    vi.mocked(prisma.report.findUnique).mockResolvedValue({ id: "r1", status: "PENDING" } as never);
+    vi.mocked(prisma.report.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    const response = await PATCH(patchRequest("REVIEWING"), { params: Promise.resolve({ id: "r1" }) });
+
+    expect(response.status).toBe(409);
   });
 });

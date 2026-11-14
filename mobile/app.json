@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Cars of Ceylon",
+    "slug": "cars-of-ceylon-mobile",
+    "scheme": "carsceylon",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"]
+  }
+}

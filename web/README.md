@@ -69,6 +69,8 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 - `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
 - `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
 - `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)
+- `PATCH /api/vehicles/:id/photos/:photoId` (caption), `DELETE /api/vehicles/:id/photos/:photoId` (owner/moderator/admin)
+- `PATCH|DELETE /api/vehicles/:id/events/:eventId`, `GET|POST /api/users/:id`, `POST|DELETE /api/users/:id/follow`
 - `POST /api/reports` (authenticated; create moderation report)
 - `GET /api/reports` (moderator/admin report queue)
 - `PATCH /api/reports/:id` (moderator/admin status update)

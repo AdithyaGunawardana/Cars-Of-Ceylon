@@ -12,18 +12,24 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@carsofceylon.local";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
+  const isProduction = process.env.NODE_ENV === "production";
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? "admin@carsofceylon.local").toLowerCase();
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? (isProduction ? undefined : "ChangeMe123!");
+
+  // Never fall back to a well-known password outside local development.
+  if (!adminPassword) {
+    throw new Error("SEED_ADMIN_PASSWORD must be set when seeding in production.");
+  }
 
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 
   // Upsert keeps seed re-runnable without creating duplicate admin users.
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
+    // Re-running the seed must not reset an existing admin's password.
     update: {
       name: "Cars of Ceylon Admin",
       role: UserRole.ADMIN,
-      passwordHash,
     },
     create: {
       name: "Cars of Ceylon Admin",
@@ -77,7 +83,6 @@ async function main() {
 
   console.log("Seed complete.");
   console.log(`Admin email: ${adminEmail}`);
-  console.log("Admin password: value from SEED_ADMIN_PASSWORD or default fallback");
 }
 
 main()

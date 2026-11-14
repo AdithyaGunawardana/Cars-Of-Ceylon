@@ -2,15 +2,25 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getClientIp, rateLimit } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8).max(128),
 });
 
 // Creates credential users with validated input and hashed passwords.
 export async function POST(request: Request) {
+  // Throttle by IP: slows account-creation spam and email enumeration via the 409 response.
+  const limit = rateLimit(`register:${getClientIp(request.headers)}`, 10, 60 * 60 * 1000);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Too many registration attempts. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
+  }
+
   const json = await request.json().catch(() => null);
   // Validate early and return structured field errors for clients.
   const parsed = registerSchema.safeParse(json);

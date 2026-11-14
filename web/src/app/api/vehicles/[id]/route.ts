@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireSession, resolveVehicleManager } from "@/lib/api-auth";
 import { Prisma } from "@prisma/client";
 import { getAuthSession } from "@/auth";
 import {
@@ -7,7 +8,9 @@ import {
   vehicleIdParamsSchema,
   updateVehicleSuccessSchema,
 } from "@/lib/contracts/vehicle-contracts";
+import { canViewVehicle } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { getVehicleDetail } from "@/lib/vehicle-queries";
 
 // Returns one vehicle with timeline/photos and enforces private visibility rules.
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
@@ -18,20 +21,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "Invalid vehicle id" }, { status: 400 });
   }
 
-  const vehicle = await prisma.vehicle.findUnique({
-    where: { id: parsed.data.id },
-    include: {
-      createdBy: {
-        select: { id: true, name: true },
-      },
-      events: {
-        orderBy: { createdAt: "desc" },
-      },
-      photos: {
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
+  const vehicle = await getVehicleDetail(parsed.data.id);
 
   if (!vehicle) {
     return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
@@ -39,9 +29,11 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 
   if (vehicle.visibility === "PRIVATE") {
     const session = await getAuthSession();
+    const viewer = session?.user?.id
+      ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } })
+      : null;
     // Return 404 for unauthorized private access to avoid leaking record existence.
-    const canViewPrivate = session?.user?.id === vehicle.createdByUserId;
-    if (!canViewPrivate) {
+    if (!canViewVehicle(viewer, vehicle)) {
       return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
     }
   }
@@ -53,10 +45,8 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
 
 // Updates vehicle metadata for owner/moderator/admin users.
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const params = await context.params;
   const parsedParams = vehicleIdParamsSchema.safeParse(params);
@@ -70,25 +60,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return NextResponse.json({ error: "Invalid vehicle data", details: parsedBody.error.flatten() }, { status: 400 });
   }
 
-  const [vehicle, currentUser] = await Promise.all([
-    prisma.vehicle.findUnique({ where: { id: parsedParams.data.id }, select: { id: true, createdByUserId: true } }),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } }),
-  ]);
-
-  if (!vehicle) {
-    return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
-  }
-
-  if (!currentUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const canManage =
-    currentUser.id === vehicle.createdByUserId || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-
-  if (!canManage) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const access = await resolveVehicleManager(parsedParams.data.id, auth.userId);
+  if (!access.ok) return access.response;
+  const { vehicle } = access;
 
   try {
     const updatedVehicle = await prisma.vehicle.update({
@@ -118,10 +92,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
 // Deletes a vehicle record for owner/moderator/admin users.
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const params = await context.params;
   const parsedParams = vehicleIdParamsSchema.safeParse(params);
@@ -129,25 +101,9 @@ export async function DELETE(_: Request, context: { params: Promise<{ id: string
     return NextResponse.json({ error: "Invalid vehicle id" }, { status: 400 });
   }
 
-  const [vehicle, currentUser] = await Promise.all([
-    prisma.vehicle.findUnique({ where: { id: parsedParams.data.id }, select: { id: true, createdByUserId: true } }),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } }),
-  ]);
-
-  if (!vehicle) {
-    return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
-  }
-
-  if (!currentUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const canManage =
-    currentUser.id === vehicle.createdByUserId || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-
-  if (!canManage) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const access = await resolveVehicleManager(parsedParams.data.id, auth.userId);
+  if (!access.ok) return access.response;
+  const { vehicle } = access;
 
   await prisma.vehicle.delete({ where: { id: vehicle.id } });
   return new NextResponse(null, { status: 204 });

@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { getAuthSession } from "@/auth";
+import { requireSession, resolveVehicleManager } from "@/lib/api-auth";
 import { createVehicleEventRequestSchema, vehicleIdParamsSchema } from "@/lib/contracts/vehicle-contracts";
 import { prisma } from "@/lib/prisma";
 
 // Creates a timeline event for a vehicle when the caller has contribution permissions.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await requireSession();
+  if (!auth.ok) return auth.response;
 
   const params = await context.params;
   const parsedParams = vehicleIdParamsSchema.safeParse(params);
@@ -22,26 +20,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return NextResponse.json({ error: "Invalid event data", details: parsedBody.error.flatten() }, { status: 400 });
   }
 
-  const [vehicle, currentUser] = await Promise.all([
-    prisma.vehicle.findUnique({ where: { id: parsedParams.data.id }, select: { id: true, createdByUserId: true } }),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } }),
-  ]);
-
-  if (!vehicle) {
-    return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
-  }
-
-  if (!currentUser) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Owners and moderation roles can contribute timeline records.
-  const canContribute =
-    vehicle.createdByUserId === currentUser.id || currentUser.role === "MODERATOR" || currentUser.role === "ADMIN";
-
-  if (!canContribute) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const access = await resolveVehicleManager(parsedParams.data.id, auth.userId);
+  if (!access.ok) return access.response;
+  const { vehicle, user: currentUser } = access;
 
   const event = await prisma.vehicleEvent.create({
     data: {

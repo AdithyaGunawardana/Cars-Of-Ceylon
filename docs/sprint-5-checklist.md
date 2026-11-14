@@ -46,6 +46,17 @@ npm run test
 npm run build
 ```
 
+## Audit Correction (2026-11-13)
+
+A code audit found these items were ticked before they were actually implemented:
+
+- Report rate limiting (`429`) — implemented in the P0 hardening pass.
+- Web timeline edit/delete controls — implemented in P1 (`timeline-event-list.tsx`).
+- Web photo upload staged status / cancel / retry — implemented in P1 (`photo-upload-form.tsx`).
+- Rate-limit and failed-upload tests — added in P0/P1.
+
+See `docs/TODO.md` for the current state of the remaining work.
+
 ## Notes
 
 - Sprint 5 advances both web parity and mobile bootstrap without changing core domain contracts.
