@@ -13,13 +13,33 @@ export function canManageVehicle(user: AuthzUser | null | undefined, vehicle: { 
   return user.id === vehicle.createdByUserId || isModerator(user);
 }
 
-// Public vehicles are visible to everyone. Private ones only to owner and moderation roles.
+// Visibility rules, strictest first:
+// - soft-deleted vehicles: moderators/admins only
+// - hidden vehicles (moderated): owner and moderation roles
+// - private vehicles: owner and moderation roles
+// - everything else: public
 export function canViewVehicle(
   user: AuthzUser | null | undefined,
-  vehicle: { visibility: "PUBLIC" | "PRIVATE"; createdByUserId: string },
+  vehicle: {
+    visibility: "PUBLIC" | "PRIVATE";
+    createdByUserId: string;
+    deletedAt?: Date | null;
+    hiddenAt?: Date | null;
+  },
 ) {
+  if (vehicle.deletedAt) return isModerator(user);
+  if (vehicle.hiddenAt) return canManageVehicle(user, vehicle);
   if (vehicle.visibility === "PUBLIC") return true;
   return canManageVehicle(user, vehicle);
+}
+
+// Whether `actor` may ban or unban `target`. Moderators handle regular users; only admins touch moderators;
+// admins are never bannable through the API.
+export function canBanUser(actor: AuthzUser, target: AuthzUser) {
+  if (actor.id === target.id) return false;
+  if (target.role === "ADMIN") return false;
+  if (target.role === "MODERATOR") return actor.role === "ADMIN";
+  return isModerator(actor);
 }
 
 // Report workflow: PENDING -> REVIEWING -> RESOLVED | REJECTED. Final states are terminal.

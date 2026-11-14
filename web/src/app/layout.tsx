@@ -66,6 +66,11 @@ export default async function RootLayout({
                   Moderation
                 </Link>
               ) : null}
+              {canAccessModeration ? (
+                <Link href="/moderation/log" className="text-sm text-[#504442] hover:text-[#271310]">
+                  Audit log
+                </Link>
+              ) : null}
             </div>
 
             <div className="flex items-center gap-3 text-xs text-[#504442]">

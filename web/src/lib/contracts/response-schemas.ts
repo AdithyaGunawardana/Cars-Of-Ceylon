@@ -26,6 +26,9 @@ const vehicleFields = {
   description: z.string().nullable(),
   attributes: z.unknown(),
   visibility: z.enum(["PUBLIC", "PRIVATE"]),
+  deletedAt: isoDate.nullable(),
+  deletedById: z.string().nullable(),
+  hiddenAt: isoDate.nullable(),
   createdAt: isoDate,
   updatedAt: isoDate,
   createdByUserId: idString,
@@ -44,6 +47,7 @@ export const eventWireSchema = z
     details: z.string().nullable(),
     occurredAt: isoDate.nullable(),
     sourceUrl: z.string().nullable(),
+    hiddenAt: isoDate.nullable(),
     createdAt: isoDate,
     updatedAt: isoDate,
   })
@@ -57,6 +61,7 @@ export const photoWireSchema = z
     storageKey: z.string(),
     url: z.string().url(),
     caption: z.string().nullable(),
+    hiddenAt: isoDate.nullable(),
     createdAt: isoDate,
   })
   .strict();
@@ -124,6 +129,9 @@ export const profileWireSchema = z
         email: z.string().nullable(),
         image: z.string().nullable(),
         profile: z.unknown(),
+        // Present only when the viewer is a moderator/admin.
+        bannedAt: isoDate.nullable().optional(),
+        role: z.enum(["USER", "MODERATOR", "ADMIN"]).optional(),
       })
       .strict(),
     stats: z

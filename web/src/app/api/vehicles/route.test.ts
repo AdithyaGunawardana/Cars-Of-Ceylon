@@ -9,6 +9,7 @@ vi.mock("@/auth", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    user: { findUnique: vi.fn() },
     vehicle: {
       findMany: vi.fn(),
       count: vi.fn(),
@@ -84,6 +85,7 @@ describe("/api/vehicles route", () => {
 
     it("returns 400 for invalid vehicle payload", async () => {
       vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER", bannedAt: null } as never);
 
       const request = new Request("http://localhost/api/vehicles", {
         method: "POST",
@@ -102,6 +104,7 @@ describe("/api/vehicles route", () => {
     it("creates a vehicle and seeded CREATED event for authenticated user", async () => {
       // Successful creation should attribute ownership and append initial timeline entry.
       vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER", bannedAt: null } as never);
       vi.mocked(prisma.vehicle.create).mockResolvedValue({ id: "v1" } as never);
 
       const request = new Request("http://localhost/api/vehicles", {

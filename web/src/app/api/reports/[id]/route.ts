@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireSession, resolveModerator } from "@/lib/api-auth";
 import { reportIdParamsSchema, updateReportStatusRequestSchema } from "@/lib/contracts/report-contracts";
 import { canTransitionReport } from "@/lib/authz";
+import { writeModerationLog } from "@/lib/moderation-log";
 import { prisma } from "@/lib/prisma";
 
 // Moderators/admins can transition report status and record who handled the decision.
@@ -43,9 +44,23 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   }
 
   // Compare-and-set on the old status so two moderators cannot both apply conflicting transitions.
-  const claimed = await prisma.report.updateMany({
-    where: { id: existing.id, status: existing.status },
-    data: { status: parsedBody.data.status, moderatedById: currentUser.id, moderatedAt: new Date() },
+  // The audit row commits atomically with the transition.
+  const actionByStatus = { REVIEWING: "REPORT_REVIEWING", RESOLVED: "REPORT_RESOLVED", REJECTED: "REPORT_REJECTED" } as const;
+  const claimed = await prisma.$transaction(async (tx) => {
+    const result = await tx.report.updateMany({
+      where: { id: existing.id, status: existing.status },
+      data: { status: parsedBody.data.status, moderatedById: currentUser.id, moderatedAt: new Date() },
+    });
+    if (result.count > 0) {
+      await writeModerationLog(tx, {
+        actorId: currentUser.id,
+        action: actionByStatus[parsedBody.data.status],
+        targetType: "REPORT",
+        targetId: existing.id,
+        metadata: { from: existing.status, to: parsedBody.data.status },
+      });
+    }
+    return result;
   });
   if (claimed.count === 0) {
     return NextResponse.json({ error: "Report was updated by someone else. Refresh and retry." }, { status: 409 });

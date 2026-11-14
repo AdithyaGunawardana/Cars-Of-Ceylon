@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
   const vehicle = await prisma.vehicle.findUnique({
     where: { id: parsedBody.data.vehicleId },
-    select: { id: true, visibility: true, createdByUserId: true },
+    select: { id: true, visibility: true, createdByUserId: true, deletedAt: true, hiddenAt: true },
   });
 
   // Private vehicles are invisible to non-owners, so reporting them must look like "not found".

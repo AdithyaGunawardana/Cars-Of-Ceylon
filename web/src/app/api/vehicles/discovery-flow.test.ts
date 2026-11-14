@@ -70,6 +70,8 @@ describe("mobile discovery contract for /api/vehicles", () => {
       expect.objectContaining({
         where: {
           visibility: "PUBLIC",
+          deletedAt: null,
+          hiddenAt: null,
           manufacturer: { contains: "Toyota", mode: "insensitive" },
           model: { contains: "Corolla", mode: "insensitive" },
           year: 1999,

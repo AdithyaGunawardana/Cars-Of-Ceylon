@@ -8,9 +8,10 @@ import {
   vehicleIdParamsSchema,
   updateVehicleSuccessSchema,
 } from "@/lib/contracts/vehicle-contracts";
-import { canViewVehicle } from "@/lib/authz";
+import { canManageVehicle, canViewVehicle } from "@/lib/authz";
+import { writeModerationLog } from "@/lib/moderation-log";
 import { prisma } from "@/lib/prisma";
-import { getVehicleDetail } from "@/lib/vehicle-queries";
+import { getVehicleDetail, redactHiddenContent } from "@/lib/vehicle-queries";
 
 // Returns one vehicle with timeline/photos and enforces private visibility rules.
 export async function GET(_: Request, context: { params: Promise<{ id: string }> }) {
@@ -21,22 +22,23 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
     return NextResponse.json({ error: "Invalid vehicle id" }, { status: 400 });
   }
 
-  const vehicle = await getVehicleDetail(parsed.data.id);
+  const found = await getVehicleDetail(parsed.data.id);
 
-  if (!vehicle) {
+  if (!found) {
     return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
   }
 
-  if (vehicle.visibility === "PRIVATE") {
-    const session = await getAuthSession();
-    const viewer = session?.user?.id
-      ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } })
-      : null;
-    // Return 404 for unauthorized private access to avoid leaking record existence.
-    if (!canViewVehicle(viewer, vehicle)) {
-      return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
-    }
+  // Deleted, hidden and private records are only visible to the owner / moderators (see canViewVehicle).
+  const session = await getAuthSession();
+  const viewer = session?.user?.id
+    ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } })
+    : null;
+  // Return 404 for unauthorized access to avoid leaking record existence.
+  if (!canViewVehicle(viewer, found)) {
+    return NextResponse.json({ error: "Vehicle not found" }, { status: 404 });
   }
+
+  const vehicle = redactHiddenContent(found, canManageVehicle(viewer, found));
 
   // Keep response aligned with shared contract expectations.
   vehicleDetailSuccessSchema.parse({ vehicle });
@@ -90,7 +92,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   }
 }
 
-// Deletes a vehicle record for owner/moderator/admin users.
+// Soft-deletes a vehicle (owner/moderator/admin). Data stays recoverable until the purge job removes it.
 export async function DELETE(_: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireSession();
   if (!auth.ok) return auth.response;
@@ -103,8 +105,14 @@ export async function DELETE(_: Request, context: { params: Promise<{ id: string
 
   const access = await resolveVehicleManager(parsedParams.data.id, auth.userId);
   if (!access.ok) return access.response;
-  const { vehicle } = access;
+  const { vehicle, user } = access;
 
-  await prisma.vehicle.delete({ where: { id: vehicle.id } });
+  await prisma.$transaction(async (tx) => {
+    await tx.vehicle.update({ where: { id: vehicle.id }, data: { deletedAt: new Date(), deletedById: user.id } });
+    // Owners deleting their own record is routine; only privileged deletions are audited.
+    if (user.id !== vehicle.createdByUserId) {
+      await writeModerationLog(tx, { actorId: user.id, action: "VEHICLE_DELETE", targetType: "VEHICLE", targetId: vehicle.id });
+    }
+  });
   return new NextResponse(null, { status: 204 });
 }

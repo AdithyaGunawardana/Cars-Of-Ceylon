@@ -85,6 +85,7 @@ describe("GET /api/users/:id", () => {
       expect.objectContaining({
         where: {
           createdByUserId: "u1",
+          deletedAt: null,
         },
       }),
     );

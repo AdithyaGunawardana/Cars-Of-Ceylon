@@ -65,7 +65,9 @@ Ensure `DATABASE_URL` in `.env` points to your PostgreSQL instance.
 - `POST /api/vehicles` (authenticated)
 - `GET /api/vehicles/:id`
 - `PATCH /api/vehicles/:id` (authenticated, owner/moderator/admin)
-- `DELETE /api/vehicles/:id` (authenticated, owner/moderator/admin)
+- `DELETE /api/vehicles/:id` (soft delete; owner/moderator/admin), `POST /api/vehicles/:id/restore`
+- Moderation: `POST /api/moderation/content` (hide/unhide), `PATCH /api/moderation/users/:id` (ban/unban), `GET /api/moderation/log`
+- Storage maintenance: `npm run storage:cleanup` (dry run) / `-- --apply` removes orphaned uploads and purges vehicles soft-deleted for 30+ days
 - `POST /api/vehicles/:id/events` (authenticated, owner/moderator/admin)
 - `POST /api/vehicles/:id/photos/upload-url` (authenticated, owner/moderator/admin)
 - `POST /api/vehicles/:id/photos/finalize` (authenticated, owner/moderator/admin; finalize by `storageKey`)

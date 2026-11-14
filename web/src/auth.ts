@@ -40,7 +40,7 @@ const providers = [
         where: { email: parsed.data.email },
       });
 
-      if (!user?.passwordHash) {
+      if (!user?.passwordHash || user.bannedAt) {
         return null;
       }
 

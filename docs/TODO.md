@@ -38,8 +38,10 @@ Source of truth for remaining work. Derived from the 2026-11-13 repo audit. Upda
 ## P3 - Features needed to call it complete
 - [x] Profile editing (name, bio, avatar URL) and change password: `/account`, `GET/PATCH /api/account`, `POST /api/account/password` (rate limited)
 - [ ] Password reset and email verification (blocked: needs an email provider; avatar file upload still URL-only)
-- [ ] Vehicle soft delete, moderation audit log, orphaned S3 object cleanup
-- [ ] Moderation actions beyond status changes (hide content, ban user)
+- [x] Vehicle soft delete + restore, moderation audit log (`ModerationLog`, `/moderation/log`), orphaned S3 object cleanup and 30-day purge (`npm run storage:cleanup`, dry-run by default)
+- [x] Moderation actions beyond status changes: hide/unhide vehicle, photo, event; ban/unban user (immediate, DB-checked)
+  - Not yet in the UI: hide buttons on individual photos/events (API only), a "deleted vehicles" list for owners, scheduling `storage:cleanup`
+  - Moderation UI (hide/restore/ban controls, log page) is covered by API tests but not yet by a browser E2E
 - [ ] Discovery: full-text search, sorting, year range, follow feed
 - [ ] Use `attributes` JSON in forms and filters
 - [ ] SEO (`generateMetadata`, sitemap, OG images); `error.tsx`, `not-found.tsx`, `loading.tsx`

@@ -30,6 +30,26 @@ enum EventType {
   NOTE
 }
 
+enum ModerationAction {
+  REPORT_REVIEWING
+  REPORT_RESOLVED
+  REPORT_REJECTED
+  VEHICLE_DELETE
+  VEHICLE_RESTORE
+  CONTENT_HIDE
+  CONTENT_UNHIDE
+  USER_BAN
+  USER_UNBAN
+}
+
+enum ModerationTarget {
+  REPORT
+  VEHICLE
+  PHOTO
+  EVENT
+  USER
+}
+
 enum VehicleVisibility {
   PUBLIC
   PRIVATE
@@ -45,6 +65,8 @@ model User {
   image          String?
   profile        Json?
   role           UserRole  @default(USER)
+  bannedAt       DateTime?
+  banReason      String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -57,6 +79,7 @@ model User {
   reportsHandled Report[]  @relation("ReportModerator")
   followers      Follow[]  @relation("Followee")
   following      Follow[]  @relation("Follower")
+  moderationLogs ModerationLog[]
 }
 
 model Vehicle {
@@ -70,6 +93,11 @@ model Vehicle {
   description       String?
   attributes        Json?
   visibility        VehicleVisibility @default(PUBLIC)
+  // Soft delete: row is kept (and recoverable) until purged by the cleanup job.
+  deletedAt         DateTime?
+  deletedById       String?
+  // Hidden by a moderator: only the owner and moderators can still see it.
+  hiddenAt          DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   createdByUserId   String
@@ -81,6 +109,7 @@ model Vehicle {
 
   @@index([manufacturer, model, year])
   @@index([createdAt])
+  @@index([deletedAt])
 }
 
 model VehicleEvent {
@@ -93,6 +122,7 @@ model VehicleEvent {
   details      String?
   occurredAt   DateTime?
   sourceUrl    String?
+  hiddenAt     DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -111,6 +141,7 @@ model VehiclePhoto {
   storageKey   String    @unique
   url          String
   caption      String?
+  hiddenAt     DateTime?
   createdAt    DateTime  @default(now())
 
   vehicle      Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
@@ -186,4 +217,21 @@ model VerificationToken {
   expires    DateTime
 
   @@id([identifier, token])
+}
+
+model ModerationLog {
+  // Append-only audit trail of privileged actions. No relation on targetId so entries outlive their targets.
+  id         String           @id @default(cuid())
+  actorId    String?
+  action     ModerationAction
+  targetType ModerationTarget
+  targetId   String
+  reason     String?
+  metadata   Json?
+  createdAt  DateTime         @default(now())
+
+  actor      User?            @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
 }

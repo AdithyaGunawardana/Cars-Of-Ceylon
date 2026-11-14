@@ -299,7 +299,8 @@ Authorization: Required (Owner | Moderator | Admin)
 ### Delete Vehicle
 
 ```
-DELETE /api/vehicles/:id
+DELETE /api/vehicles/:id        (SOFT delete: sets deletedAt; 404 afterwards for non-moderators)
+POST   /api/vehicles/:id/restore  (owner undoes own deletion; moderators undo any) -> 200 { restored: true }
 Authorization: Required (Owner | Moderator | Admin)
 ```
 
@@ -676,3 +677,20 @@ interface CreateVehicleRequest {
 - Nullable fields may be `null` or omitted depending on client preference
 - Rate limiting not yet implemented; add if needed for production
 - CORS is configured for web only; mobile uses direct token auth
+
+
+## Moderation safety (P3)
+
+All endpoints require a moderator/admin session, return 403 otherwise, and write an append-only `ModerationLog` row in the same transaction.
+
+```
+POST  /api/moderation/content      { targetType: "VEHICLE"|"PHOTO"|"EVENT", targetId, hidden: boolean, reason (3-1000) } -> 200 { targetType, targetId, hidden } | 404 | 409 (already in that state)
+PATCH /api/moderation/users/:id    { banned: boolean, reason? (required when banning) } -> 200 { userId, banned } | 403 | 404 | 409
+GET   /api/moderation/log          ?action&targetType&targetId&page&pageSize(<=100) -> 200 { items[{ id, actor, action, targetType, targetId, reason, metadata, createdAt }], pagination }
+```
+
+- Hidden vehicles are visible only to their owner and moderators; hidden photos/events are removed from the vehicle payload for everyone who cannot manage the vehicle. Items carry `hiddenAt`.
+- Soft-deleted vehicles are visible only to moderators (`deletedAt`, `deletedById` on the payload). Owner deletions are not audited; moderator deletions/restores are.
+- Banned accounts cannot sign in and every protected API call returns `403 { "error": "Account suspended" }` immediately (the flag is read from the database, not the JWT). Moderators cannot ban themselves, admins, or other moderators (admins can ban moderators).
+- Profile payloads include `bannedAt` and `role` only for moderator viewers.
+- Report status changes are audited as `REPORT_REVIEWING|RESOLVED|REJECTED`.

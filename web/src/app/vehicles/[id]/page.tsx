@@ -2,14 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthSession } from "@/auth";
 import { EventCreateForm } from "@/components/event-create-form";
+import { HideContentControl, RestoreVehicleButton } from "@/components/moderation-actions";
 import { PhotoAlbum } from "@/components/photo-album";
 import { PhotoUploadForm } from "@/components/photo-upload-form";
 import { TimelineEventList } from "@/components/timeline-event-list";
 import { VehicleManagementForm } from "@/components/vehicle-management-form";
 import { VehicleReportForm } from "@/components/vehicle-report-form";
-import { canManageVehicle as userCanManageVehicle, canViewVehicle } from "@/lib/authz";
+import { canManageVehicle as userCanManageVehicle, canViewVehicle, isModerator } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { getVehicleDetail } from "@/lib/vehicle-queries";
+import { getVehicleDetail, redactHiddenContent } from "@/lib/vehicle-queries";
 
 export default async function VehicleDetailPage({
   params,
@@ -20,9 +21,9 @@ export default async function VehicleDetailPage({
   const session = await getAuthSession();
 
   // Load full detail payload for timeline and album rendering in a single query.
-  const vehicle = await getVehicleDetail(id);
+  const found = await getVehicleDetail(id);
 
-  if (!vehicle) {
+  if (!found) {
     notFound();
   }
 
@@ -35,20 +36,47 @@ export default async function VehicleDetailPage({
     : null;
 
   // Match API behavior: private records are visible to owner, moderators and admins only.
-  if (!canViewVehicle(currentUser, vehicle)) {
+  if (!canViewVehicle(currentUser, found)) {
     notFound();
   }
 
-  const canContribute = userCanManageVehicle(currentUser, vehicle);
+  const canContribute = userCanManageVehicle(currentUser, found);
+  // Hidden photos/events are filtered out for everyone who cannot manage the vehicle.
+  const vehicle = redactHiddenContent(found, canContribute);
 
   // Same policy as contribution actions: owner/moderator/admin can manage metadata.
   const canManageVehicle = canContribute;
+
+  const viewerIsModerator = isModerator(currentUser);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 md:px-10">
       <Link href="/vehicles" className="text-sm font-semibold text-[#725a39] hover:text-[#271310]">
         Back to vehicles
       </Link>
+
+      {vehicle.deletedAt ? (
+        <p role="status" className="rounded-2xl bg-[#fff0ef] px-4 py-3 text-sm text-[#9e2a2b] ring-1 ring-[#d3c3c0]/70">
+          This vehicle was deleted on {vehicle.deletedAt.toISOString().slice(0, 10)} and is only visible to moderators.
+        </p>
+      ) : null}
+      {vehicle.hiddenAt ? (
+        <p role="status" className="rounded-2xl bg-[#fff7e6] px-4 py-3 text-sm text-[#725a39] ring-1 ring-[#d3c3c0]/70">
+          This vehicle is hidden from the public by a moderator. Only its owner and moderators can see it.
+        </p>
+      ) : null}
+      {viewerIsModerator ? (
+        <section aria-label="Moderator actions" className="grid gap-2 rounded-2xl bg-white p-4 ring-1 ring-[#d3c3c0]/70">
+          <p className="text-xs uppercase tracking-[0.28em] text-[#725a39]">Moderator actions</p>
+          <div className="flex flex-wrap items-start gap-2">
+            {vehicle.deletedAt ? (
+              <RestoreVehicleButton vehicleId={vehicle.id} />
+            ) : (
+              <HideContentControl targetType="VEHICLE" targetId={vehicle.id} hidden={Boolean(vehicle.hiddenAt)} />
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-[1.5rem] bg-[#ffffff] p-6 shadow-[0_20px_50px_rgba(27,28,21,0.06)] ring-1 ring-[#d3c3c0]/70">
         <div className="flex flex-wrap items-start justify-between gap-4">

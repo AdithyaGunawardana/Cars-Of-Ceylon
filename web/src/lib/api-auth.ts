@@ -10,11 +10,19 @@ export function errorResponse(error: string, status: number, extra?: { headers?:
   return NextResponse.json({ error }, { status, headers: extra?.headers });
 }
 
-// Step 1 of every protected route: require a signed-in session (401 otherwise).
+// Step 1 of every protected route: require a signed-in, non-suspended account (401 / 403 otherwise).
+// The ban flag is read from the database on every call so a ban takes effect immediately, even for live JWTs.
 export async function requireSession(): Promise<Guard<{ userId: string }>> {
   const session = await getAuthSession();
   if (!session?.user?.id) {
     return { ok: false, response: errorResponse("Unauthorized", 401) };
+  }
+  const account = await prisma.user.findUnique({ where: { id: session.user.id }, select: { bannedAt: true } });
+  if (!account) {
+    return { ok: false, response: errorResponse("Unauthorized", 401) };
+  }
+  if (account.bannedAt) {
+    return { ok: false, response: errorResponse("Account suspended", 403) };
   }
   return { ok: true, userId: session.user.id };
 }
@@ -39,16 +47,26 @@ export async function resolveModerator(userId: string): Promise<Guard<{ user: Au
 }
 
 // Vehicle owner, moderator or admin (404 missing vehicle, 401 missing user, 403 not allowed).
+// Soft-deleted vehicles read as missing unless the caller opts in (restore flow).
 export async function resolveVehicleManager(
   vehicleId: string,
   userId: string,
-): Promise<Guard<{ vehicle: { id: string; createdByUserId: string }; user: AuthzUser }>> {
+  options: { includeDeleted?: boolean } = {},
+): Promise<
+  Guard<{
+    vehicle: { id: string; createdByUserId: string; deletedAt: Date | null; deletedById: string | null };
+    user: AuthzUser;
+  }>
+> {
   const [vehicle, user] = await Promise.all([
-    prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { id: true, createdByUserId: true } }),
+    prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { id: true, createdByUserId: true, deletedAt: true, deletedById: true },
+    }),
     prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } }),
   ]);
 
-  if (!vehicle) {
+  if (!vehicle || (vehicle.deletedAt && !options.includeDeleted)) {
     return { ok: false, response: errorResponse("Vehicle not found", 404) };
   }
   if (!user) {

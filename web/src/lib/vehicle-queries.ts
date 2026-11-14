@@ -20,6 +20,8 @@ export function buildPublicVehicleWhere(query: VehicleListQuery): Prisma.Vehicle
   const { manufacturer, model, year, search } = query;
   return {
     visibility: "PUBLIC",
+    deletedAt: null,
+    hiddenAt: null,
     ...(manufacturer ? { manufacturer: { contains: manufacturer, mode: "insensitive" } } : {}),
     ...(model ? { model: { contains: model, mode: "insensitive" } } : {}),
     ...(year ? { year } : {}),
@@ -75,4 +77,17 @@ export function getVehicleDetail(id: string) {
       photos: { orderBy: { createdAt: "desc" } },
     },
   });
+}
+
+// Hidden photos/events are only shown to people who can manage the vehicle (owner, moderators, admins).
+export function redactHiddenContent<T extends { photos: { hiddenAt: Date | null }[]; events: { hiddenAt: Date | null }[] }>(
+  vehicle: T,
+  canSeeHidden: boolean,
+): T {
+  if (canSeeHidden) return vehicle;
+  return {
+    ...vehicle,
+    photos: vehicle.photos.filter((photo) => !photo.hiddenAt),
+    events: vehicle.events.filter((event) => !event.hiddenAt),
+  };
 }
