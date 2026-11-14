@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     const vehicle = await prisma.vehicle.create({
       data: {
         ...parsed.data,
+        attributes: parsed.data.attributes ?? undefined,
         createdByUserId: auth.userId,
         events: {
           // Every new vehicle starts with a CREATED event so timeline history is never empty.

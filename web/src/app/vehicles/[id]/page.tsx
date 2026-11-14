@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthSession } from "@/auth";
@@ -10,7 +11,28 @@ import { VehicleManagementForm } from "@/components/vehicle-management-form";
 import { VehicleReportForm } from "@/components/vehicle-report-form";
 import { canManageVehicle as userCanManageVehicle, canViewVehicle, isModerator } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { getPublicVehicleSeo, truncate } from "@/lib/seo";
+import { ATTRIBUTE_LABELS, labelForOption, readAttributes, type VehicleAttributes } from "@/lib/vehicle-attributes";
 import { getVehicleDetail, redactHiddenContent } from "@/lib/vehicle-queries";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const vehicle = await getPublicVehicleSeo(id);
+  // Non-public records are never described in metadata and are kept out of search indexes.
+  if (!vehicle) return { title: "Vehicle", robots: { index: false, follow: false } };
+
+  const title = `${vehicle.year} ${vehicle.manufacturer} ${vehicle.model}`;
+  const description = truncate(
+    vehicle.description?.trim() || `History, timeline and photos of this ${title} (${vehicle.uniqueIdentifier}).`,
+    160,
+  );
+  return {
+    title,
+    description,
+    alternates: { canonical: `/vehicles/${vehicle.id}` },
+    openGraph: { title, description, type: "article", url: `/vehicles/${vehicle.id}` },
+  };
+}
 
 export default async function VehicleDetailPage({
   params,
@@ -48,6 +70,13 @@ export default async function VehicleDetailPage({
   const canManageVehicle = canContribute;
 
   const viewerIsModerator = isModerator(currentUser);
+  const attributes = readAttributes(vehicle.attributes);
+  const attributeEntries = (Object.keys(ATTRIBUTE_LABELS) as (keyof VehicleAttributes)[]).flatMap((key) => {
+    const value = attributes[key];
+    if (value === undefined) return [];
+    const text = typeof value === "number" ? value.toLocaleString("en-US") : key === "color" ? value : labelForOption(String(value));
+    return [[key, text] as const];
+  });
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10 md:px-10">
@@ -95,6 +124,16 @@ export default async function VehicleDetailPage({
         </div>
 
         <p className="mt-4 text-sm text-[#271310]">{vehicle.description ?? "No description added yet."}</p>
+        {attributeEntries.length > 0 ? (
+          <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm md:grid-cols-3" aria-label="Specifications">
+            {attributeEntries.map(([key, value]) => (
+              <div key={key}>
+                <dt className="text-xs uppercase tracking-[0.18em] text-[#725a39]">{ATTRIBUTE_LABELS[key]}</dt>
+                <dd className="text-[#271310]">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
         <p className="mt-3 text-xs text-[#765f5c]">
           Added by{" "}
           <Link href={`/users/${vehicle.createdBy.id}`} className="text-[#725a39] hover:text-[#271310]">
@@ -157,6 +196,7 @@ export default async function VehicleDetailPage({
             year: vehicle.year,
             description: vehicle.description,
             visibility: vehicle.visibility,
+            attributes,
           }}
         />
       ) : null}

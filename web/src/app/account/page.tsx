@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/auth";
 import { AccountSettingsForm } from "@/components/account-settings-form";
@@ -22,6 +23,9 @@ export default async function AccountPage() {
         <h1 className="font-serif text-3xl text-[#271310]">Settings</h1>
         <p className="mt-1 text-sm text-[#504442]">Signed in as {user.email}</p>
       </div>
+      <Link href="/account/vehicles" className="w-fit text-sm font-semibold text-[#725a39] hover:text-[#271310]">
+        Deleted vehicles (restore within 30 days)
+      </Link>
       <AccountSettingsForm
         initial={{ name: user.name ?? "", bio: typeof bio === "string" ? bio : "", image: user.image ?? "" }}
       />

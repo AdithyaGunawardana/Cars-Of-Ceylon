@@ -69,7 +69,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   try {
     const updatedVehicle = await prisma.vehicle.update({
       where: { id: vehicle.id },
-      data: parsedBody.data,
+      data: {
+        ...parsedBody.data,
+        // Explicit null clears the JSON column; undefined leaves it untouched.
+        attributes: parsedBody.data.attributes === null ? Prisma.DbNull : parsedBody.data.attributes,
+      },
       include: {
         createdBy: {
           select: { id: true, name: true },

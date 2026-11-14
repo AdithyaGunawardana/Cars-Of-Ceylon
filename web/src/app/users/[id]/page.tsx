@@ -1,10 +1,34 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAuthSession } from "@/auth";
 import { FollowButton } from "@/components/follow-button";
 import { BanUserControl } from "@/components/moderation-actions";
 import { canBanUser } from "@/lib/authz";
+import { prisma } from "@/lib/prisma";
+import { publiclyIndexable, truncate } from "@/lib/seo";
 import { loadUserProfile } from "@/lib/user-profile";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const user = await prisma.user.findFirst({
+    where: { id, bannedAt: null },
+    select: { name: true, profile: true, _count: { select: { vehicles: { where: publiclyIndexable } } } },
+  });
+  if (!user) return { title: "Member", robots: { index: false } };
+
+  const bio = user.profile && typeof user.profile === "object" ? (user.profile as { bio?: unknown }).bio : null;
+  const name = user.name ?? "Member";
+  return {
+    title: name,
+    description: truncate(
+      typeof bio === "string" && bio ? bio : `${name} has shared ${user._count.vehicles} vehicle record(s) on Cars of Ceylon.`,
+      160,
+    ),
+    // Profiles without public vehicles add nothing to search results.
+    robots: user._count.vehicles === 0 ? { index: false } : undefined,
+  };
+}
 
 export default async function UserProfilePage({
   params,

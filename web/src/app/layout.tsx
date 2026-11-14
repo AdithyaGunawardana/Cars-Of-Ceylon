@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Manrope, Noto_Serif } from "next/font/google";
 import { getAuthSession } from "@/auth";
+import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -15,8 +16,11 @@ const notoSerif = Noto_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Cars of Ceylon",
-  description: "A web archive for Sri Lankan vehicle history, photos, and timelines.",
+  metadataBase: new URL(getSiteUrl()),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  openGraph: { siteName: SITE_NAME, type: "website", locale: "en_LK" },
+  twitter: { card: "summary_large_image" },
 };
 
 export default async function RootLayout({
@@ -54,6 +58,11 @@ export default async function RootLayout({
               {currentUser ? (
                 <Link href={`/users/${currentUser.id}`} className="text-sm text-[#504442] hover:text-[#271310]">
                   Profile
+                </Link>
+              ) : null}
+              {currentUser ? (
+                <Link href="/feed" className="text-sm text-[#504442] hover:text-[#271310]">
+                  Following
                 </Link>
               ) : null}
               {currentUser ? (

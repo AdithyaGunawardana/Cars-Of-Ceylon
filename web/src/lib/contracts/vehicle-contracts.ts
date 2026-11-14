@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BODY_TYPES, FUEL_TYPES, TRANSMISSIONS, vehicleAttributesSchema } from "@/lib/vehicle-attributes";
 
 // Only web links are allowed: z.string().url() alone accepts javascript:/data: URLs that become XSS when rendered as href.
 export const httpUrlSchema = z
@@ -19,8 +20,21 @@ export const vehicleListQuerySchema = z.object({
   model: z.string().trim().min(1).max(80).optional(),
   year: z.coerce.number().int().min(1886).max(2100).optional(),
   search: z.string().trim().min(1).max(80).optional(),
+  // Full-text search across make, model, description, identifier, plate and timeline text.
+  q: z.string().trim().min(2).max(100).optional(),
+  yearFrom: z.coerce.number().int().min(1886).max(2100).optional(),
+  yearTo: z.coerce.number().int().min(1886).max(2100).optional(),
+  // Defaults to "relevance" when `q` is set, otherwise "newest".
+  sort: z.enum(["newest", "oldest", "year_desc", "year_asc", "name", "relevance"]).optional(),
+  color: z.string().trim().min(1).max(40).optional(),
+  fuelType: z.enum(FUEL_TYPES).optional(),
+  transmission: z.enum(TRANSMISSIONS).optional(),
+  bodyType: z.enum(BODY_TYPES).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
+}).refine((value) => value.yearFrom === undefined || value.yearTo === undefined || value.yearFrom <= value.yearTo, {
+  message: "yearFrom must not be after yearTo",
+  path: ["yearFrom"],
 });
 
 // Contract for creating a new vehicle entry.
@@ -31,6 +45,7 @@ export const createVehicleRequestSchema = z.object({
   model: z.string().trim().min(1).max(80),
   year: z.number().int().min(1886).max(2100),
   description: z.string().trim().max(5000).optional().nullable(),
+  attributes: vehicleAttributesSchema.optional().nullable(),
 });
 
 // Contract for patching existing vehicle metadata.
@@ -43,6 +58,7 @@ export const updateVehicleRequestSchema = z
     year: z.number().int().min(1886).max(2100).optional(),
     description: z.string().trim().max(5000).nullable().optional(),
     visibility: z.enum(["PUBLIC", "PRIVATE"]).optional(),
+    attributes: vehicleAttributesSchema.nullable().optional(),
   })
   .refine((payload) => Object.keys(payload).length > 0, {
     message: "At least one field is required",

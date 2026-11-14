@@ -2,6 +2,16 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { VehicleAttributeFields } from "@/components/vehicle-attribute-fields";
+import {
+  dangerButtonClass,
+  inputClass,
+  primaryButtonClass,
+  readApiError,
+  secondaryButtonClass,
+  textareaClass,
+} from "@/lib/client-utils";
+import { attributesFromFormData, type VehicleAttributes } from "@/lib/vehicle-attributes";
 
 type Visibility = "PUBLIC" | "PRIVATE";
 
@@ -15,6 +25,7 @@ type Props = {
     year: number;
     description: string | null;
     visibility: Visibility;
+    attributes: VehicleAttributes;
   };
 };
 
@@ -43,6 +54,8 @@ export function VehicleManagementForm({ vehicleId, initialValues }: Props) {
       year: Number(form.get("year") ?? 0),
       description: String(form.get("description") ?? "").trim() || null,
       visibility: String(form.get("visibility") ?? "PUBLIC") as Visibility,
+      // null clears all specifications.
+      attributes: attributesFromFormData(form),
     };
 
     const response = await fetch(`/api/vehicles/${vehicleId}`, {
@@ -52,8 +65,7 @@ export function VehicleManagementForm({ vehicleId, initialValues }: Props) {
     });
 
     if (!response.ok) {
-      const result = await response.json().catch(() => null);
-      setSaveError(result?.error ?? "Failed to update vehicle.");
+      setSaveError(await readApiError(response, "Failed to update vehicle."));
       setSaving(false);
       return;
     }
@@ -88,95 +100,44 @@ export function VehicleManagementForm({ vehicleId, initialValues }: Props) {
     });
 
     if (!response.ok) {
-      const result = await response.json().catch(() => null);
-      setDeleteError(result?.error ?? "Failed to delete vehicle.");
+      setDeleteError(await readApiError(response, "Failed to delete vehicle."));
       setDeleting(false);
       return;
     }
 
-    // After deletion, return to archive listing.
-    router.push("/vehicles");
+    // After deletion, return to the owner's deleted list where it can be restored.
+    router.push("/account/vehicles");
     router.refresh();
   }
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
-      <h2 className="text-xl font-semibold text-zinc-100">Manage Vehicle</h2>
-      <p className="mt-1 text-sm text-zinc-300">Edit vehicle metadata or remove this entry.</p>
+    <section className="rounded-[1.5rem] bg-white p-6 shadow-[0_20px_50px_rgba(27,28,21,0.06)] ring-1 ring-[#d3c3c0]/70">
+      <h2 className="font-serif text-xl text-[#271310]">Manage Vehicle</h2>
+      <p className="mt-1 text-sm text-[#504442]">Edit vehicle metadata or remove this entry.</p>
 
       <form onSubmit={handleSave} className="mt-4 grid gap-3">
-        <input
-          name="uniqueIdentifier"
-          required
-          defaultValue={initialValues.uniqueIdentifier}
-          placeholder="Unique Identifier"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        />
-        <input
-          name="licensePlate"
-          defaultValue={initialValues.licensePlate ?? ""}
-          placeholder="License Plate"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        />
-        <input
-          name="manufacturer"
-          required
-          defaultValue={initialValues.manufacturer}
-          placeholder="Manufacturer"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        />
-        <input
-          name="model"
-          required
-          defaultValue={initialValues.model}
-          placeholder="Model"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        />
-        <input
-          name="year"
-          type="number"
-          required
-          min={1886}
-          max={2100}
-          defaultValue={initialValues.year}
-          placeholder="Year"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        />
-        <select
-          name="visibility"
-          defaultValue={initialValues.visibility}
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        >
+        <input name="uniqueIdentifier" required defaultValue={initialValues.uniqueIdentifier} placeholder="Unique Identifier" className={inputClass} />
+        <input name="licensePlate" defaultValue={initialValues.licensePlate ?? ""} placeholder="License Plate" className={inputClass} />
+        <input name="manufacturer" required defaultValue={initialValues.manufacturer} placeholder="Manufacturer" className={inputClass} />
+        <input name="model" required defaultValue={initialValues.model} placeholder="Model" className={inputClass} />
+        <input name="year" type="number" required min={1886} max={2100} defaultValue={initialValues.year} placeholder="Year" className={inputClass} />
+        <select name="visibility" defaultValue={initialValues.visibility} aria-label="Visibility" className={inputClass}>
           <option value="PUBLIC">PUBLIC</option>
           <option value="PRIVATE">PRIVATE</option>
         </select>
-        <textarea
-          name="description"
-          rows={4}
-          defaultValue={initialValues.description ?? ""}
-          placeholder="Vehicle description"
-          className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-        />
+        <textarea name="description" rows={4} defaultValue={initialValues.description ?? ""} placeholder="Vehicle description" className={textareaClass} />
+        <VehicleAttributeFields values={initialValues.attributes} />
 
-        {saveError ? <p className="text-sm text-red-300">{saveError}</p> : null}
-        {deleteError ? <p className="text-sm text-red-300">{deleteError}</p> : null}
-        {success ? <p className="text-sm text-emerald-300">{success}</p> : null}
+        {saveError ? <p role="alert" className="text-sm text-[#9e2a2b]">{saveError}</p> : null}
+        {deleteError ? <p role="alert" className="text-sm text-[#9e2a2b]">{deleteError}</p> : null}
+        {success ? <p role="status" className="text-sm text-[#2f5d2a]">{success}</p> : null}
 
         <div className="flex flex-wrap gap-2 pt-1">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-md border border-emerald-700 px-4 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-950 disabled:opacity-60"
-          >
+          <button type="submit" disabled={saving} className={primaryButtonClass}>
             {saving ? "Saving..." : "Save Changes"}
           </button>
           {!showDeleteConfirm ? (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="rounded-md border border-red-700 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-950 disabled:opacity-60"
-            >
+            <button type="button" onClick={handleDelete} disabled={deleting} className={dangerButtonClass}>
               {deleting ? "Deleting..." : "Delete Vehicle"}
             </button>
           ) : null}
@@ -184,26 +145,27 @@ export function VehicleManagementForm({ vehicleId, initialValues }: Props) {
 
         {/* Delete confirmation prompt */}
         {showDeleteConfirm ? (
-          <div className="mt-3 rounded-lg border border-red-700 bg-red-950/30 p-4">
-            <p className="text-sm text-red-200 font-semibold">
-              This will permanently delete this vehicle and all related timeline events and photos.
+          <div className="mt-3 rounded-2xl bg-[#fff0ef] p-4 ring-1 ring-[#9e2a2b]/30">
+            <p className="text-sm font-semibold text-[#9e2a2b]">
+              This removes the vehicle from the archive. You can restore it from your deleted vehicles for 30 days, after
+              which it and its timeline and photos are permanently erased.
             </p>
-            <p className="mt-2 text-sm text-red-100">
-              To confirm, type <code className="bg-red-900/50 px-1 rounded">DELETE</code> below:
+            <p className="mt-2 text-sm text-[#271310]">
+              To confirm, type <code className="rounded bg-white px-1">DELETE</code> below:
             </p>
             <input
               type="text"
               value={deleteConfirmation}
               onChange={(e) => setDeleteConfirmation(e.target.value)}
               placeholder="Type DELETE"
-              className="mt-2 w-full rounded-md border border-red-700 bg-red-950/50 px-3 py-2 text-sm text-red-100 placeholder-red-700 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className={`${inputClass} mt-2`}
             />
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting || deleteConfirmation !== "DELETE"}
-                className="rounded-md border border-red-600 px-4 py-2 text-sm font-semibold text-red-100 hover:bg-red-900 disabled:opacity-60"
+                className={dangerButtonClass}
               >
                 {deleting ? "Deleting..." : "Confirm Delete"}
               </button>
@@ -214,7 +176,7 @@ export function VehicleManagementForm({ vehicleId, initialValues }: Props) {
                   setDeleteConfirmation("");
                 }}
                 disabled={deleting}
-                className="rounded-md border border-red-700 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-950 disabled:opacity-60"
+                className={secondaryButtonClass}
               >
                 Cancel
               </button>
