@@ -68,7 +68,7 @@ Design notes and known limits:
 ## P4 - Mobile
 - [x] Upgrade to Expo SDK 58 (RN 0.88, React 19.3, TS 6), tsconfig extends `expo/tsconfig.base`, ESLint 9 flat config (`eslint-config-expo`), `typecheck` script; verified with `expo-doctor` (20/20), `expo install --check`, and real Android + iOS Metro bundles. Three moderate audit findings remain in Expo build tooling (`@expo/fingerprint` / `minimatch`, no non-breaking fix; they do not ship in the app)
   - **Expo Go caveat:** Expo Go supports exactly one SDK. SDK 58 shipped 2026-10-15 and its store release of Expo Go was announced as "within a few weeks"; confirm the Expo Go on your phone supports SDK 58 (it shows the supported SDK on its home screen), otherwise use a development build (`expo-dev-client` + EAS Build)
-- [ ] Split `App.tsx` into screens (expo-router / React Navigation)
+- [x] Split `App.tsx` into Expo Router screens (`src/app`: sign-in, tabs, vehicle, user; auth via `Stack.Protected`; deep links `carsceylon://vehicles/<id>`, `carsceylon://users/<id>`)
 - [ ] Token-based auth in `expo-secure-store` (needs a Bearer flow on the API)
 - [ ] Create-vehicle screen; photo caption edit/delete; fix deep-link parser; configurable API URL
 - [ ] Mobile tests + CI; EAS build profiles
