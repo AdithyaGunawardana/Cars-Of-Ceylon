@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Link, useRouter } from "expo-router";
 import { followUser, loadProfile, unfollowUser } from "@/lib/api";
+import { mediaUrl } from "@/lib/config";
 import { useSession } from "@/lib/session-context";
 import { palette, styles } from "@/lib/theme";
+import { BanControl } from "@/components/ban-control";
 import { errorMessage } from "@/components/ui";
 import type { Profile } from "@/lib/types";
 
@@ -53,6 +55,8 @@ export function ProfileView({ userId }: { userId: string }) {
     }
   }
 
+  const isModerator = session?.user.role === "MODERATOR" || session?.user.role === "ADMIN";
+
   if (loading || !profile) {
     return (
       <View style={styles.rootCentered}>
@@ -66,11 +70,17 @@ export function ProfileView({ userId }: { userId: string }) {
     <ScrollView contentContainerStyle={styles.scroll}>
       <View style={styles.screenCard}>
         <Text style={styles.kicker}>Community profile</Text>
+        {profile.user.image ? <Image source={{ uri: mediaUrl(profile.user.image) }} style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: palette.surface }} /> : null}
         <Text style={styles.heroTitle}>{profile.user.name ?? "User profile"}</Text>
         <Text style={styles.sectionMeta}>{profile.user.email ?? "No email available"}</Text>
         <Text style={styles.bodyText}>
           {typeof profile.user.profile === "object" && profile.user.profile ? JSON.stringify(profile.user.profile) : "No bio added yet."}
         </Text>
+        {userId === session?.user.id ? (
+          <Link href="/account/settings" style={styles.linkText}>
+            Account settings
+          </Link>
+        ) : null}
         {userId !== session?.user.id ? (
           <Pressable onPress={toggleFollow} style={styles.primaryButton}>
             <Text style={styles.primaryButtonText}>{following ? "Unfollow" : "Follow"}</Text>
@@ -94,6 +104,7 @@ export function ProfileView({ userId }: { userId: string }) {
         ))}
       </View>
 
+      {isModerator && userId !== session?.user.id ? <BanControl userId={userId} userName={profile.user.name ?? "This user"} /> : null}
       {message ? <Text style={styles.sectionMeta}>{message}</Text> : null}
     </ScrollView>
   );

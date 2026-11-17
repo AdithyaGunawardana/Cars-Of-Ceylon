@@ -1,13 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { clearSavedSession, loadSavedSession, saveSession } from "./session";
-import { restoreSession, signOutSession } from "./api";
+import { ApiError, refreshSession, setSignedOutHandler, signInWithPassword, signOutDevice } from "./api-client";
+import { registerAndSignIn } from "./api";
+import { loadStoredAuth } from "./token-store";
 import type { AuthSession } from "./types";
 
 type SessionContextValue = {
-  /** null once loaded and signed out; undefined is never exposed (see `loading`). */
   session: AuthSession | null;
+  /** True while the stored session is being restored at launch. */
   loading: boolean;
-  signIn: (session: AuthSession) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -19,41 +21,52 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    // The server rejecting our refresh token (revoked, expired, banned) means we are signed out everywhere.
+    setSignedOutHandler(() => active && setSession(null));
 
-    async function bootstrap() {
-      const saved = await loadSavedSession();
-      if (active && saved) setSession(saved);
-
-      const fresh = await restoreSession();
+    async function restore() {
+      const stored = await loadStoredAuth();
       if (!active) return;
-      if (fresh) {
-        setSession(fresh);
-        await saveSession(fresh);
-      } else if (saved) {
-        setSession(null);
-        await clearSavedSession();
+      if (!stored) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      // Show the app immediately from the cached user, then confirm with the server.
+      setSession({ user: stored.user });
+      try {
+        const user = await refreshSession();
+        if (active) setSession({ user });
+      } catch (error) {
+        // Offline at launch: stay signed in; requests will retry the refresh. A 401 already signed us out.
+        if (!(error instanceof ApiError) || error.status === 401) {
+          /* handled by the signed-out handler */
+        }
+      }
+      if (active) setLoading(false);
     }
 
-    bootstrap();
+    restore();
     return () => {
       active = false;
+      setSignedOutHandler(null);
     };
   }, []);
 
-  const signIn = useCallback(async (next: AuthSession) => {
-    setSession(next);
-    await saveSession(next);
+  const signIn = useCallback(async (email: string, password: string) => {
+    setSession({ user: await signInWithPassword(email, password) });
+  }, []);
+
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    setSession({ user: await registerAndSignIn(name, email, password) });
   }, []);
 
   const signOut = useCallback(async () => {
-    await signOutSession().catch(() => undefined);
-    await clearSavedSession();
+    await signOutDevice();
     setSession(null);
   }, []);
 
-  const value = useMemo(() => ({ session, loading, signIn, signOut }), [session, loading, signIn, signOut]);
+  const value = useMemo(() => ({ session, loading, signIn, register, signOut }), [session, loading, signIn, register, signOut]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

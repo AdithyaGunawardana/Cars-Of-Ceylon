@@ -8,16 +8,20 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^2.1.2",
     "eslint-config-expo": "~58.0.4",
-    "expo": "^58.0.25",
+    "expo": "~58.0.26",
+    "expo-build-properties": "~58.0.12",
     "expo-constants": "~58.0.16",
+    "expo-dev-client": "~58.0.21",
+    "expo-device": "~58.0.5",
     "expo-image-picker": "~58.0.10",
     "expo-linking": "~58.0.17",
-    "expo-router": "~58.0.31",
+    "expo-router": "~58.0.32",
+    "expo-secure-store": "~58.0.3",
     "expo-splash-screen": "~58.0.14",
     "expo-status-bar": "~58.0.5",
     "react": "19.3.0",
@@ -27,8 +31,27 @@
     "react-native-screens": "~4.30.1"
   },
   "devDependencies": {
+    "@react-native/jest-preset": "^0.88.1",
+    "@testing-library/react-native": "^14.1.0",
+    "@types/jest": "30.0.0",
     "@types/react": "~19.3.0",
     "eslint": "^9.0.0",
+    "jest": "~30.5.2",
+    "jest-expo": "~58.0.15",
     "typescript": "~6.0.3"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    },
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.expo/"
+    ],
+    "moduleDirectories": [
+      "node_modules",
+      "<rootDir>/node_modules/expo/node_modules"
+    ]
   }
 }
