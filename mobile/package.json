@@ -3,8 +3,9 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
+    "start": "expo start --go",
+    "start:dev-client": "expo start --dev-client",
+    "android": "expo start --go --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint .",

@@ -36,9 +36,11 @@ npm run dev
 # 3. the mobile app
 cd mobile
 npm install        # first time only
-npx expo start
+npm start          # = expo start --go (Expo Go mode)
 ```
-Open **Expo Go** on the phone and scan the QR code shown by `expo start`. (Android: scan with the Expo Go app itself.)
+Open **Expo Go** on the phone and scan the QR code. (Android: scan with the Expo Go app itself.) The first time, Expo Go shows a **"Local network access needed"** banner: tap it and allow, otherwise it cannot see your PC.
+
+Use `npm start`, not a bare `npx expo start`: the project includes `expo-dev-client` (for EAS development builds), which makes a bare `expo start` print a QR code for development builds (`exp+cars-of-ceylon-mobile://...`) that Expo Go cannot open. If you ever see "no app on this device can handle it", press `s` in the Expo terminal to switch to Expo Go. For a development build use `npm run start:dev-client`.
 
 The app finds the API automatically: Expo Go knows the PC's address, so it uses `http://<that address>:3000`. On the sign-in screen (development only) the line **"Server: ..."** shows which address it picked. To override it, create `mobile/.env.local`:
 ```
@@ -54,7 +56,8 @@ and restart `expo start`.
 | Symptom | Fix |
 |---|---|
 | "Could not reach the server" | Check the "Server:" line on the sign-in screen, that `npm run dev` is running, that phone and PC share Wi-Fi, and the firewall rule above. Open `http://<PC IP>:3000` in the phone's browser to test. |
-| Expo Go cannot load the project | Try `npx expo start --tunnel` (slower, works across networks), or check that port 8081 is allowed. |
+| "Can't open this project ... no app on this device can handle it" (`exp+cars-of-ceylon-mobile://`) | Expo is in development-build mode. Stop it and run `npm start` (or press `s` in the Expo terminal to switch to Expo Go). |
+| Expo Go cannot load the project | Allow "Local network access" in Expo Go, then try `npx expo start --tunnel` (slower, works across networks), or check that port 8081 is allowed. |
 | Photos upload fails, text works | `UPLOAD_S3_ENDPOINT` still says `localhost` (step 3), or port 9000 is blocked. |
 | Photos show as blank | Port 9000 blocked, or the bucket is not public (see root README). |
 | Signed out unexpectedly | Normal after a password reset/change, a ban, or 180 days. Sign in again. |
