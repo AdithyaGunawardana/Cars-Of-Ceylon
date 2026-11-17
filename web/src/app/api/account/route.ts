@@ -6,12 +6,19 @@ import { prisma } from "@/lib/prisma";
 import { createS3Client } from "@/lib/storage";
 import { getUploadStorageConfig } from "@/lib/upload-config";
 
-const accountSelect = { id: true, name: true, email: true, image: true, profile: true, avatarKey: true } as const;
+const accountSelect = { id: true, name: true, email: true, image: true, profile: true, avatarKey: true, emailVerified: true } as const;
 
-function toAccount(user: { id: string; name: string | null; email: string; image: string | null; profile: unknown }) {
+function toAccount(user: { id: string; name: string | null; email: string; image: string | null; profile: unknown; emailVerified: Date | null }) {
   const bio = user.profile && typeof user.profile === "object" ? (user.profile as { bio?: unknown }).bio : null;
   return accountResponseSchema.parse({
-    user: { id: user.id, name: user.name, email: user.email, image: user.image, bio: typeof bio === "string" ? bio : null },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      bio: typeof bio === "string" ? bio : null,
+      emailVerified: Boolean(user.emailVerified),
+    },
   });
 }
 

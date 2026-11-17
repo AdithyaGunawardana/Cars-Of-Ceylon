@@ -76,6 +76,7 @@ export const accountResponseSchema = z.object({
     email: z.string().email(),
     image: z.string().nullable(),
     bio: z.string().nullable(),
+    emailVerified: z.boolean(),
   }),
 });
 

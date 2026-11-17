@@ -1,239 +1,214 @@
-import type { AuthSession, Profile, ReportItem, VehicleDetail, VehicleListItem } from "./types";
+import { request, signInWithPassword, signOutDevice, refreshSession } from "./api-client";
+import type {
+  Account,
+  DeletedVehicle,
+  FeedItem,
+  ModerationLogItem,
+  Pagination,
+  Profile,
+  ReportItem,
+  SessionUser,
+  VehicleAttributes,
+  VehicleDetail,
+  VehicleListItem,
+  VehicleSort,
+} from "./types";
 
-const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+// Thin, typed wrappers over the web API. Auth, token refresh and error mapping live in api-client.ts.
 
-async function requestJson<T>(path: string, init?: RequestInit) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
+// ---- Auth -------------------------------------------------------------------------------------------------------
 
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(payload?.error ?? "Request failed");
-  }
+export { signInWithPassword, signOutDevice, refreshSession };
 
-  return payload as T;
+export async function registerAndSignIn(name: string, email: string, password: string): Promise<SessionUser> {
+  await request("/api/auth/register", { json: { name, email, password } }, { auth: false });
+  return signInWithPassword(email, password);
 }
 
-export async function restoreSession() {
-  const session = await requestJson<AuthSession | null>("/api/auth/session", {
-    method: "GET",
-  }).catch(() => null);
-
-  return session?.user?.id ? session : null;
+export function requestPasswordReset(email: string) {
+  return request<{ ok: boolean }>("/api/auth/password/forgot", { json: { email } }, { auth: false });
 }
 
-async function readCsrfToken() {
-  const payload = await requestJson<{ csrfToken: string }>("/api/auth/csrf", {
-    method: "GET",
-  });
+// ---- Vehicles ---------------------------------------------------------------------------------------------------
 
-  return payload.csrfToken;
-}
-
-export async function signInWithCredentials(email: string, password: string) {
-  const csrfToken = await readCsrfToken();
-  const body = new URLSearchParams({
-    csrfToken,
-    email,
-    password,
-    callbackUrl: "/",
-    json: "true",
-  });
-
-  const response = await fetch(`${baseUrl}/api/auth/callback/credentials?json=true`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "X-Requested-With": "XMLHttpRequest",
-    },
-    body: body.toString(),
-  });
-
-  const payload = await response.json().catch(() => null);
-  if (!response.ok || payload?.error) {
-    throw new Error(payload?.error ?? "Invalid email or password");
-  }
-
-  const session = await restoreSession();
-  if (!session) {
-    throw new Error("Signed in, but the session could not be restored.");
-  }
-
-  return session;
-}
-
-export async function registerAndSignIn(name: string, email: string, password: string) {
-  await requestJson<{ user: { id: string } }>("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ name, email, password }),
-  });
-
-  return signInWithCredentials(email, password);
-}
-
-export async function signOutSession() {
-  const csrfToken = await readCsrfToken();
-  await fetch(`${baseUrl}/api/auth/signout`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({ csrfToken, callbackUrl: "/" }).toString(),
-  });
-}
-
-export async function listVehicles(params: {
+export type VehicleFilters = {
+  q?: string;
+  search?: string;
   manufacturer?: string;
   model?: string;
   year?: string;
-  search?: string;
+  yearFrom?: string;
+  yearTo?: string;
+  color?: string;
+  fuelType?: string;
+  transmission?: string;
+  bodyType?: string;
+  sort?: VehicleSort;
   page?: number;
   pageSize?: number;
-}) {
-  const url = new URL(`${baseUrl}/api/vehicles`);
-  if (params.manufacturer) url.searchParams.set("manufacturer", params.manufacturer);
-  if (params.model) url.searchParams.set("model", params.model);
-  if (params.year) url.searchParams.set("year", params.year);
-  if (params.search) url.searchParams.set("search", params.search);
-  url.searchParams.set("page", String(params.page ?? 1));
-  url.searchParams.set("pageSize", String(params.pageSize ?? 10));
+};
 
-  return requestJson<{ items: VehicleListItem[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }>(url.pathname + url.search, {
-    method: "GET",
-  });
-}
-
-export async function getVehicle(vehicleId: string) {
-  return requestJson<{ vehicle: VehicleDetail }>(`/api/vehicles/${vehicleId}`, { method: "GET" });
-}
-
-export async function updateVehicle(vehicleId: string, payload: Record<string, unknown>) {
-  return requestJson<{ vehicle: VehicleDetail }>(`/api/vehicles/${vehicleId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function deleteVehicle(vehicleId: string) {
-  await requestJson(`/api/vehicles/${vehicleId}`, {
-    method: "DELETE",
-  });
-}
-
-export async function createVehicleEvent(vehicleId: string, payload: Record<string, unknown>) {
-  return requestJson<{ event: { id: string } }>(`/api/vehicles/${vehicleId}/events`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function updateVehicleEvent(vehicleId: string, eventId: string, payload: Record<string, unknown>) {
-  return requestJson<{ event: { id: string } }>(`/api/vehicles/${vehicleId}/events/${eventId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function deleteVehicleEvent(vehicleId: string, eventId: string) {
-  await requestJson(`/api/vehicles/${vehicleId}/events/${eventId}`, {
-    method: "DELETE",
-  });
-}
-
-export async function requestPhotoUpload(vehicleId: string, payload: { fileName: string; fileType: string; fileSize: number }) {
-  return requestJson<{ uploadUrl: string; storageKey: string; publicUrl: string; expiresInSeconds: number; maxBytes: number }>(
-    `/api/vehicles/${vehicleId}/photos/upload-url`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
+export function listVehicles(filters: VehicleFilters) {
+  return request<{ items: VehicleListItem[]; pagination: Pagination }>(
+    "/api/vehicles",
+    {},
+    { query: { ...filters, page: filters.page ?? 1, pageSize: filters.pageSize ?? 10 } },
   );
 }
 
-export async function finalizePhoto(vehicleId: string, payload: { storageKey: string; caption?: string | null }) {
-  return requestJson<{ photo: { id: string } }>(`/api/vehicles/${vehicleId}/photos/finalize`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export type VehicleInput = {
+  uniqueIdentifier: string;
+  licensePlate?: string | null;
+  manufacturer: string;
+  model: string;
+  year: number;
+  description?: string | null;
+  attributes?: VehicleAttributes | null;
+};
+
+export function createVehicle(input: VehicleInput) {
+  return request<{ vehicle: VehicleDetail }>("/api/vehicles", { json: input });
 }
 
-export async function createReport(payload: { vehicleId: string; reason: string }) {
-  return requestJson<{ report: { id: string } }>("/api/reports", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function getVehicle(vehicleId: string) {
+  return request<{ vehicle: VehicleDetail }>(`/api/vehicles/${vehicleId}`);
 }
 
-export async function listReports(params: { status?: string; page?: number; pageSize?: number }) {
-  const url = new URL(`${baseUrl}/api/reports`);
-  if (params.status) url.searchParams.set("status", params.status);
-  url.searchParams.set("page", String(params.page ?? 1));
-  url.searchParams.set("pageSize", String(params.pageSize ?? 10));
-
-  return requestJson<{ items: ReportItem[]; pagination: { page: number; pageSize: number; total: number; totalPages: number } }>(url.pathname + url.search, {
-    method: "GET",
-  });
+export function updateVehicle(vehicleId: string, payload: Partial<VehicleInput> & { visibility?: "PUBLIC" | "PRIVATE" }) {
+  return request<{ vehicle: VehicleDetail }>(`/api/vehicles/${vehicleId}`, { method: "PATCH", json: payload });
 }
 
-export async function updateReportStatus(reportId: string, status: "REVIEWING" | "RESOLVED" | "REJECTED") {
-  return requestJson<{ report: { id: string } }>(`/api/reports/${reportId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status }),
-  });
+export function deleteVehicle(vehicleId: string) {
+  return request<void>(`/api/vehicles/${vehicleId}`, { method: "DELETE" });
 }
 
-export async function loadProfile(userId: string) {
-  return requestJson<Profile>(`/api/users/${userId}`, { method: "GET" });
+export function restoreVehicle(vehicleId: string) {
+  return request<{ restored: boolean }>(`/api/vehicles/${vehicleId}/restore`, { method: "POST" });
 }
 
-export async function followUser(userId: string) {
-  return requestJson<{ following: boolean }>(`/api/users/${userId}/follow`, { method: "POST" });
+// ---- Timeline events --------------------------------------------------------------------------------------------
+
+export type EventInput = {
+  type: string;
+  title: string;
+  details?: string | null;
+  occurredAt?: string | null;
+  sourceUrl?: string | null;
+};
+
+export function createVehicleEvent(vehicleId: string, payload: EventInput) {
+  return request<{ event: { id: string } }>(`/api/vehicles/${vehicleId}/events`, { json: payload });
 }
 
-export async function unfollowUser(userId: string) {
-  return requestJson<{ following: boolean }>(`/api/users/${userId}/follow`, { method: "DELETE" });
+export function updateVehicleEvent(vehicleId: string, eventId: string, payload: Partial<EventInput>) {
+  return request<{ event: { id: string } }>(`/api/vehicles/${vehicleId}/events/${eventId}`, { method: "PATCH", json: payload });
 }
 
-export async function uploadPhotoWithProgress(
-  uploadUrl: string,
-  fileUri: string,
-  contentType: string,
-  onProgress?: (progress: number) => void,
-) {
-  const blob = await (await fetch(fileUri)).blob();
+export function deleteVehicleEvent(vehicleId: string, eventId: string) {
+  return request<void>(`/api/vehicles/${vehicleId}/events/${eventId}`, { method: "DELETE" });
+}
 
-  const xhr = new XMLHttpRequest();
+// ---- Photos -----------------------------------------------------------------------------------------------------
 
-  const promise = new Promise<void>((resolve, reject) => {
-    xhr.open("PUT", uploadUrl);
-    xhr.setRequestHeader("Content-Type", contentType);
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && onProgress) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
-      }
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-        return;
-      }
-      reject(new Error("File upload failed."));
-    };
-    xhr.onerror = () => reject(new Error("File upload failed."));
-    xhr.onabort = () => reject(new Error("Upload cancelled."));
-    xhr.send(blob);
-  });
+export function requestPhotoUpload(vehicleId: string, payload: { fileName: string; fileType: string; fileSize: number }) {
+  return request<{ uploadUrl: string; storageKey: string; publicUrl: string; expiresInSeconds: number; maxBytes: number }>(
+    `/api/vehicles/${vehicleId}/photos/upload-url`,
+    { json: payload },
+  );
+}
 
-  return {
-    promise,
-    cancel: () => xhr.abort(),
-  };
+export function finalizePhoto(vehicleId: string, payload: { storageKey: string; caption?: string | null }) {
+  return request<{ photo: { id: string } }>(`/api/vehicles/${vehicleId}/photos/finalize`, { json: payload });
+}
+
+export function updatePhotoCaption(vehicleId: string, photoId: string, caption: string | null) {
+  return request<{ photo: { id: string } }>(`/api/vehicles/${vehicleId}/photos/${photoId}`, { method: "PATCH", json: { caption } });
+}
+
+export function deletePhoto(vehicleId: string, photoId: string) {
+  return request<void>(`/api/vehicles/${vehicleId}/photos/${photoId}`, { method: "DELETE" });
+}
+
+// ---- Reports ----------------------------------------------------------------------------------------------------
+
+export function createReport(payload: { vehicleId: string; reason: string }) {
+  return request<{ report: { id: string } }>("/api/reports", { json: payload });
+}
+
+export function listReports(params: { status?: string; page?: number; pageSize?: number }) {
+  return request<{ items: ReportItem[]; pagination: Pagination }>(
+    "/api/reports",
+    {},
+    { query: { status: params.status, page: params.page ?? 1, pageSize: params.pageSize ?? 10 } },
+  );
+}
+
+export function updateReportStatus(reportId: string, status: "REVIEWING" | "RESOLVED" | "REJECTED") {
+  return request<{ report: { id: string } }>(`/api/reports/${reportId}`, { method: "PATCH", json: { status } });
+}
+
+// ---- People -----------------------------------------------------------------------------------------------------
+
+export function loadProfile(userId: string) {
+  return request<Profile>(`/api/users/${userId}`);
+}
+
+export function followUser(userId: string) {
+  return request<{ following: boolean }>(`/api/users/${userId}/follow`, { method: "POST" });
+}
+
+export function unfollowUser(userId: string) {
+  return request<{ following: boolean }>(`/api/users/${userId}/follow`, { method: "DELETE" });
+}
+
+export function loadFeed(page = 1, pageSize = 20) {
+  return request<{ items: FeedItem[]; pagination: Pagination; followingCount: number }>("/api/feed", {}, { query: { page, pageSize } });
+}
+
+// ---- Account ----------------------------------------------------------------------------------------------------
+
+export async function loadAccount() {
+  return (await request<{ user: Account }>("/api/account")).user;
+}
+
+export async function updateAccount(payload: { name?: string; bio?: string; image?: string | null }) {
+  return (await request<{ user: Account }>("/api/account", { method: "PATCH", json: payload })).user;
+}
+
+export function changePassword(currentPassword: string, newPassword: string) {
+  return request<{ ok: boolean }>("/api/account/password", { json: { currentPassword, newPassword } });
+}
+
+export function requestAvatarUpload(payload: { fileType: string; fileSize: number }) {
+  return request<{ uploadUrl: string; storageKey: string }>("/api/account/avatar/upload-url", { json: payload });
+}
+
+export function finalizeAvatar(storageKey: string) {
+  return request<{ user?: Account; image?: string }>("/api/account/avatar/finalize", { json: { storageKey } });
+}
+
+export function sendVerificationEmail() {
+  return request<{ ok: boolean }>("/api/auth/verify/send", { method: "POST" });
+}
+
+export async function listDeletedVehicles() {
+  return (await request<{ items: DeletedVehicle[] }>("/api/account/deleted-vehicles")).items;
+}
+
+// ---- Moderation -------------------------------------------------------------------------------------------------
+
+export function hideContent(payload: { targetType: "VEHICLE" | "PHOTO" | "EVENT"; targetId: string; hidden: boolean; reason: string }) {
+  return request<{ hidden: boolean }>("/api/moderation/content", { json: payload });
+}
+
+export function banUser(userId: string, payload: { banned: boolean; reason?: string }) {
+  return request<{ banned: boolean }>(`/api/moderation/users/${userId}`, { method: "PATCH", json: payload });
+}
+
+export function listModerationLog(params: { page?: number; pageSize?: number; action?: string }) {
+  return request<{ items: ModerationLogItem[]; pagination: Pagination }>(
+    "/api/moderation/log",
+    {},
+    { query: { action: params.action, page: params.page ?? 1, pageSize: params.pageSize ?? 25 } },
+  );
 }

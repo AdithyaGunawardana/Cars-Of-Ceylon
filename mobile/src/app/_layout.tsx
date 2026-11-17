@@ -29,10 +29,15 @@ function RootStack() {
     >
       <Stack.Protected guard={!session}>
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        <Stack.Screen name="forgot-password" options={{ title: "", headerTransparent: true }} />
       </Stack.Protected>
       <Stack.Protected guard={!!session}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="vehicles/[id]" options={{ title: "Vehicle" }} />
+        <Stack.Screen name="vehicles/new" options={{ title: "Add vehicle" }} />
+        <Stack.Screen name="account/settings" options={{ title: "Account" }} />
+        <Stack.Screen name="account/deleted" options={{ title: "Deleted vehicles" }} />
+        <Stack.Screen name="moderation/log" options={{ title: "Audit log" }} />
         <Stack.Screen name="users/[id]" options={{ title: "Profile" }} />
       </Stack.Protected>
     </Stack>

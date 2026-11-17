@@ -6,13 +6,25 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
+    "android": {
+      "package": "com.carsofceylon.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.carsofceylon.app",
+      "supportsTablet": false
+    },
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cars of Ceylon needs access to your photos so you can add pictures to vehicle records and your profile."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

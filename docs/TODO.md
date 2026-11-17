@@ -69,9 +69,11 @@ Design notes and known limits:
 - [x] Upgrade to Expo SDK 58 (RN 0.88, React 19.3, TS 6), tsconfig extends `expo/tsconfig.base`, ESLint 9 flat config (`eslint-config-expo`), `typecheck` script; verified with `expo-doctor` (20/20), `expo install --check`, and real Android + iOS Metro bundles. Three moderate audit findings remain in Expo build tooling (`@expo/fingerprint` / `minimatch`, no non-breaking fix; they do not ship in the app)
   - **Expo Go caveat:** Expo Go supports exactly one SDK. SDK 58 shipped 2026-10-15 and its store release of Expo Go was announced as "within a few weeks"; confirm the Expo Go on your phone supports SDK 58 (it shows the supported SDK on its home screen), otherwise use a development build (`expo-dev-client` + EAS Build)
 - [x] Split `App.tsx` into Expo Router screens (`src/app`: sign-in, tabs, vehicle, user; auth via `Stack.Protected`; deep links `carsceylon://vehicles/<id>`, `carsceylon://users/<id>`)
-- [ ] Token-based auth in `expo-secure-store` (needs a Bearer flow on the API)
-- [ ] Create-vehicle screen; photo caption edit/delete; fix deep-link parser; configurable API URL
-- [ ] Mobile tests + CI; EAS build profiles
+- [x] Token sign-in: `/api/mobile/auth/login|refresh|logout`, 15-min access JWT + single-use rotating refresh tokens (family revocation on replay, 180-day device cap), Bearer accepted by `getAuthSession`; the app keeps the refresh token in `expo-secure-store`
+- [x] Mobile feature parity: create/edit vehicle with attributes, search + filters + sort, timeline with event types and source links, photo caption edit/delete, follow feed, account settings (profile, avatar, password, email verification), deleted-vehicle restore, forgot password, moderator tools (hide/unhide, suspend users, audit log), configurable/auto-detected API URL
+- [x] Mobile tests (jest-expo: 61 tests) + `mobile-quality` CI job (lint, typecheck, jest, Android bundle) + EAS profiles (`mobile/eas.json`); guide in `docs/MOBILE_DEV.md`
+- [ ] Add `mobile-quality` to the required checks of the `main` and `development` rulesets (do this after the first PR that runs the job is merged)
+- [ ] Try the app on a physical phone (Samsung S23) and note anything to improve; EAS builds need an Expo account (`eas login`) and, once a host exists, the real API URL in `eas.json`
 
 ## P5 - Production
 - [ ] **Decide the hosting target and buy a domain first** (needed by email DNS records, the bucket's public URL and CORS origin, and `AUTH_URL`). The Dockerfile, rate-limit store, secrets and CSP choices all depend on the host. Candidates: a PaaS with managed Postgres (Railway, Render, Fly.io), Vercel plus a managed Postgres, or a VPS with Docker Compose.

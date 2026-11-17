@@ -45,8 +45,12 @@ export default function ReportsScreen() {
   }, [status, isModerator]);
 
   async function submitReport() {
+    if (!vehicleId.trim() || reason.trim().length < 5) {
+      setSubmitMessage("Enter the vehicle ID and a reason of at least 5 characters. Tip: you can also report from a vehicle's page.");
+      return;
+    }
     try {
-      await createReport({ vehicleId, reason });
+      await createReport({ vehicleId: vehicleId.trim(), reason: reason.trim() });
       setSubmitMessage("Report submitted.");
       setVehicleId("");
       setReason("");
@@ -70,7 +74,7 @@ export default function ReportsScreen() {
       <View style={styles.screenCard}>
         <Text style={styles.sectionTitle}>Submit Report</Text>
         <TextInput value={vehicleId} onChangeText={setVehicleId} placeholder="Vehicle ID" autoCapitalize="none" style={styles.input} placeholderTextColor={palette.muted} />
-        <TextInput value={reason} onChangeText={setReason} placeholder="Explain the issue" style={[styles.input, styles.textArea]} multiline placeholderTextColor={palette.muted} />
+        <TextInput value={reason} onChangeText={setReason} placeholder="Explain the issue (at least 5 characters)" style={[styles.input, styles.textArea]} multiline maxLength={2000} placeholderTextColor={palette.muted} />
         <Pressable onPress={submitReport} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Submit Report</Text></Pressable>
         {submitMessage ? <Text style={styles.sectionMeta}>{submitMessage}</Text> : null}
       </View>

@@ -43,6 +43,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Vehicles" }} />
+      <Tabs.Screen name="feed" options={{ title: "Following" }} />
       <Tabs.Screen name="me" options={{ title: "Profile" }} />
       <Tabs.Screen name="reports" options={{ title: isModerator ? "Reports" : "Report" }} />
     </Tabs>
