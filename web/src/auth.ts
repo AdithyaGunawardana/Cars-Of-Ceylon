@@ -1,19 +1,15 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import bcrypt from "bcryptjs";
-import { getServerSession, type NextAuthOptions } from "next-auth";
+import { getServerSession, type NextAuthOptions, type Session } from "next-auth";
+import { headers } from "next/headers";
 import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { z } from "zod";
+import { verifyCredentials } from "@/lib/credentials";
+import { claimsFromAuthorization } from "@/lib/mobile-tokens";
 import { prisma } from "@/lib/prisma";
-import { getClientIp, rateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/rate-limit";
 
 const ROLE_REFRESH_MS = 5 * 60 * 1000;
-
-const credentialSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(8),
-});
 
 // Enable providers only when their env configuration exists, so local/dev can run with credentials only.
 const providers = [
@@ -24,30 +20,13 @@ const providers = [
       password: { label: "Password", type: "password" },
     },
     async authorize(rawCredentials, req) {
-      const parsed = credentialSchema.safeParse(rawCredentials);
-      if (!parsed.success) {
-        return null;
-      }
-
-      // Brute-force guard: 10 attempts / 15 min per email+IP and 30 / 15 min per IP.
+      // Brute-force guard and password check are shared with the mobile token endpoint.
       const ip = getClientIp({ get: (name) => (req?.headers as Record<string, string> | undefined)?.[name] ?? null });
-      const windowMs = 15 * 60 * 1000;
-      if (!rateLimit(`login:ip:${ip}`, 30, windowMs).allowed || !rateLimit(`login:${parsed.data.email}:${ip}`, 10, windowMs).allowed) {
+      const result = await verifyCredentials(rawCredentials, ip);
+      if (result.status !== "ok") {
         return null;
       }
-
-      const user = await prisma.user.findUnique({
-        where: { email: parsed.data.email },
-      });
-
-      if (!user?.passwordHash || user.bannedAt) {
-        return null;
-      }
-
-      const isValid = await bcrypt.compare(parsed.data.password, user.passwordHash);
-      if (!isValid) {
-        return null;
-      }
+      const user = result.user;
 
       return {
         id: user.id,
@@ -117,6 +96,32 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-export function getAuthSession() {
-  return getServerSession(authOptions);
+// Signed-in identity for pages and API routes. Mobile clients send `Authorization: Bearer <access token>`;
+// browsers use the NextAuth cookie. A Bearer header that is present but invalid is never "upgraded" to the cookie.
+export async function getAuthSession(): Promise<Session | null> {
+  let authorization: string | null = null;
+  try {
+    authorization = (await headers()).get("authorization");
+  } catch {
+    // Called outside a request scope; fall through to the cookie session.
+  }
+
+  const claims = await claimsFromAuthorization(authorization);
+  if (claims === undefined) {
+    return getServerSession(authOptions);
+  }
+  if (claims === null) {
+    return null;
+  }
+
+  // Identity fields come from the database so profile changes show up without a new token.
+  const user = await prisma.user.findUnique({ where: { id: claims.userId }, select: { name: true, email: true, image: true } });
+  if (!user) {
+    return null;
+  }
+  return {
+    user: { id: claims.userId, role: claims.role, name: user.name, email: user.email, image: user.image },
+    expires: new Date(claims.expiresAt).toISOString(),
+    issuedAt: claims.issuedAt,
+  };
 }
