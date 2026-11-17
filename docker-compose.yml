@@ -18,10 +18,12 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:latest
+    # The upstream minio/minio images were removed from Docker Hub and quay.io (the project is archived), so this
+    # uses the Bitnami legacy mirror, pinned to the last MinIO build. It is for local development and CI only;
+    # production uses a real S3-compatible service (S3 / R2). The server listens on 9000 (API) and 9001 (console).
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     container_name: coc_minio
     restart: unless-stopped
-    command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -29,7 +31,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio_data:/data
+      - minio_data:/bitnami/minio/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
@@ -37,7 +39,7 @@ services:
       retries: 5
 
   minio-init:
-    image: minio/mc:latest
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
     container_name: coc_minio_init
     depends_on:
       minio:
