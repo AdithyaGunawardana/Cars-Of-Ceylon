@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Manrope, Noto_Serif } from "next/font/google";
 import { getAuthSession } from "@/auth";
+import { MobileMenu } from "@/components/mobile-menu";
 import { getSiteUrl, SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 import "./globals.css";
 
@@ -37,6 +38,27 @@ export default async function RootLayout({
 
   const canAccessModeration = currentUser?.role === "MODERATOR" || currentUser?.role === "ADMIN";
 
+  // One list drives both the inline desktop links and the phone dropdown, so they can never drift apart.
+  const navLinks = [
+    { href: "/vehicles", label: "Vehicles" },
+    { href: "/vehicles/new", label: "Add Vehicle" },
+    ...(currentUser
+      ? [
+          { href: `/users/${currentUser.id}`, label: "Profile" },
+          { href: "/feed", label: "Following" },
+          { href: "/account", label: "Settings" },
+        ]
+      : []),
+    ...(canAccessModeration
+      ? [
+          { href: "/moderation/reports", label: "Moderation" },
+          { href: "/moderation/log", label: "Audit log" },
+        ]
+      : []),
+  ];
+
+  const authButtonClass = "rounded-full border border-[#d3c3c0] px-3 py-1.5 text-[#271310] hover:bg-[#f5f4e8]";
+
   return (
     <html
       lang="en"
@@ -44,63 +66,54 @@ export default async function RootLayout({
     >
       <body className="min-h-full bg-[var(--background)] text-[var(--foreground)] flex flex-col">
         <header className="border-b border-[#d3c3c0]/70 bg-[#fbfaee]/95 backdrop-blur-md">
-          <nav className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-6 py-3 md:px-10">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="font-serif text-sm font-semibold tracking-wide text-[#271310] hover:text-[#725a39]">
+          <nav
+            aria-label="Main"
+            className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 md:px-10"
+          >
+            <div className="flex min-w-0 items-center gap-4">
+              <Link
+                href="/"
+                className="shrink-0 whitespace-nowrap font-serif text-sm font-semibold tracking-wide text-[#271310] hover:text-[#725a39]"
+              >
                 Cars of Ceylon
               </Link>
-              <Link href="/vehicles" className="text-sm text-[#504442] hover:text-[#271310]">
-                Vehicles
-              </Link>
-              <Link href="/vehicles/new" className="text-sm text-[#504442] hover:text-[#271310]">
-                Add Vehicle
-              </Link>
-              {currentUser ? (
-                <Link href={`/users/${currentUser.id}`} className="text-sm text-[#504442] hover:text-[#271310]">
-                  Profile
-                </Link>
-              ) : null}
-              {currentUser ? (
-                <Link href="/feed" className="text-sm text-[#504442] hover:text-[#271310]">
-                  Following
-                </Link>
-              ) : null}
-              {currentUser ? (
-                <Link href="/account" className="text-sm text-[#504442] hover:text-[#271310]">
-                  Settings
-                </Link>
-              ) : null}
-              {canAccessModeration ? (
-                <Link href="/moderation/reports" className="text-sm text-[#504442] hover:text-[#271310]">
-                  Moderation
-                </Link>
-              ) : null}
-              {canAccessModeration ? (
-                <Link href="/moderation/log" className="text-sm text-[#504442] hover:text-[#271310]">
-                  Audit log
-                </Link>
-              ) : null}
+              {/* Desktop: all links inline. Phones use the dropdown below. */}
+              <div className="hidden items-center gap-4 md:flex">
+                {navLinks.map((link) => (
+                  <Link key={link.href} href={link.href} className="text-sm text-[#504442] hover:text-[#271310]">
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
             </div>
 
-            <div className="flex items-center gap-3 text-xs text-[#504442]">
+            <div className="flex shrink-0 items-center gap-2 text-xs text-[#504442]">
               {currentUser ? (
                 <>
-                  <span className="hidden sm:inline">{currentUser.name ?? currentUser.email ?? "Signed in"}</span>
-                  <Link
-                    href="/api/auth/signout?callbackUrl=/"
-                    className="rounded-full border border-[#d3c3c0] px-3 py-1.5 text-[#271310] hover:bg-[#f5f4e8]"
-                  >
+                  <span className="hidden max-w-[10rem] truncate sm:inline">
+                    {currentUser.name ?? currentUser.email ?? "Signed in"}
+                  </span>
+                  {/* prefetch off: this is an action URL, there is nothing to warm up. */}
+                  <Link href="/api/auth/signout?callbackUrl=/" prefetch={false} className={authButtonClass}>
                     Sign Out
                   </Link>
                 </>
               ) : (
-                <Link
-                  href="/login"
-                  className="rounded-full border border-[#d3c3c0] px-3 py-1.5 text-[#271310] hover:bg-[#f5f4e8]"
-                >
+                <Link href="/login" className={authButtonClass}>
                   Sign In
                 </Link>
               )}
+              <MobileMenu>
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="rounded-xl px-3 py-2 text-sm text-[#271310] hover:bg-[#f5f4e8]"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </MobileMenu>
             </div>
           </nav>
         </header>
