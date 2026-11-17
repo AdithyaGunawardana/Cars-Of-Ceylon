@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { purgeExpiredRefreshTokens } from "../src/lib/mobile-tokens";
 import { createS3Client } from "../src/lib/storage";
 import { runStorageCleanup } from "../src/lib/storage-cleanup";
 import { getUploadStorageConfig } from "../src/lib/upload-config";
@@ -31,6 +32,7 @@ async function main() {
   for (const key of report.orphanedObjects.slice(0, 20)) console.log(`    ${key}`);
   if (report.orphanedObjects.length > 20) console.log(`    ... and ${report.orphanedObjects.length - 20} more`);
   console.log(`  objects deleted:   ${report.deletedObjectCount}`);
+  if (report.apply) console.log(`  expired mobile refresh tokens removed: ${await purgeExpiredRefreshTokens()}`);
 }
 
 main()

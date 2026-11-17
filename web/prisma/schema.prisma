@@ -83,6 +83,7 @@ model User {
   followers      Follow[]  @relation("Followee")
   following      Follow[]  @relation("Follower")
   moderationLogs ModerationLog[]
+  mobileRefreshTokens MobileRefreshToken[]
 }
 
 model Vehicle {
@@ -237,4 +238,24 @@ model ModerationLog {
 
   @@index([createdAt])
   @@index([targetType, targetId])
+}
+
+// Mobile app sign-in: opaque, single-use refresh tokens (only a SHA-256 hash is stored).
+// Each rotation stays in one family; presenting an already-used token revokes the whole family.
+model MobileRefreshToken {
+  id              String    @id @default(cuid())
+  userId          String
+  familyId        String
+  tokenHash       String    @unique
+  deviceName      String?
+  familyStartedAt DateTime
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime
+  usedAt          DateTime?
+  revokedAt       DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
 }
