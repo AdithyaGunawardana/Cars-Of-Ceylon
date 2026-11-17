@@ -112,3 +112,7 @@ export const updateVehicleSuccessSchema = z.object({
 export const createVehicleEventSuccessSchema = z.object({
   event: z.object({ id: z.string().min(1) }).passthrough(),
 });
+
+export const updateVehicleEventSuccessSchema = z.object({
+  event: z.object({ id: z.string().min(1) }).passthrough(),
+});
