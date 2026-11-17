@@ -56,6 +56,11 @@ export default async function RootLayout({
                   Profile
                 </Link>
               ) : null}
+              {currentUser ? (
+                <Link href="/account" className="text-sm text-[#504442] hover:text-[#271310]">
+                  Settings
+                </Link>
+              ) : null}
               {canAccessModeration ? (
                 <Link href="/moderation/reports" className="text-sm text-[#504442] hover:text-[#271310]">
                   Moderation
