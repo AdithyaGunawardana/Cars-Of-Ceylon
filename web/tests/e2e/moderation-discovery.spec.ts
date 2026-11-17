@@ -12,8 +12,16 @@ const member = { name: "Member Mala", email: `member.${stamp}@example.com` };
 // A made-up model name so search results cannot collide with other specs' data.
 const MODEL = `Zephyrion${stamp}`;
 
+// Navigate and wait for the network to settle so React has hydrated. Clicking before hydration makes the browser
+// submit forms natively (a full page reload), which is a timing race that only shows up on slower CI machines.
+async function go(page: Page, url: string) {
+  const response = await page.goto(url);
+  await page.waitForLoadState("networkidle");
+  return response;
+}
+
 async function signIn(page: Page, email: string, password: string) {
-  await page.goto("/login");
+  await go(page, "/login");
   await page.getByPlaceholder("Email").fill(email);
   await page.getByPlaceholder("Password").fill(password);
   await page.getByRole("button", { name: "Sign In" }).click();
@@ -32,7 +40,7 @@ test.describe.serial("discovery, moderation and account UI", () => {
 
   test("a member adds a vehicle with specifications and finds it through search and filters", async ({ browser }) => {
     const { context, page } = await freshPage(browser);
-    await page.goto("/register");
+    await go(page, "/register");
     await page.getByPlaceholder("Name").fill(member.name);
     await page.getByPlaceholder("Email").fill(member.email);
     await page.getByPlaceholder("Password (min 8 chars)").fill(PASSWORD);
@@ -40,7 +48,7 @@ test.describe.serial("discovery, moderation and account UI", () => {
     await page.waitForURL("**/login?registered=1");
     await signIn(page, member.email, PASSWORD);
 
-    await page.goto("/vehicles/new");
+    await go(page, "/vehicles/new");
     await page.getByPlaceholder("Unique Identifier (required)").fill(`SPEC-${stamp}`);
     await page.getByPlaceholder("Manufacturer").fill("Hillman");
     await page.getByPlaceholder("Model").fill(MODEL);
@@ -63,17 +71,17 @@ test.describe.serial("discovery, moderation and account UI", () => {
 
     // Anonymous visitors use the search form and the structured filters.
     const visitor = await freshPage(browser);
-    await visitor.page.goto("/vehicles");
+    await go(visitor.page, "/vehicles");
     await visitor.page.getByLabel("Search the archive").fill("harbour");
     await visitor.page.getByRole("button", { name: "Search" }).click();
     await expect(visitor.page.getByRole("heading", { name: `Hillman ${MODEL}` })).toBeVisible();
     await expect(visitor.page).toHaveURL(/q=harbour/);
 
-    await visitor.page.goto(`/vehicles?q=${MODEL}&fuelType=DIESEL&yearFrom=1950&yearTo=1960`);
+    await go(visitor.page, `/vehicles?q=${MODEL}&fuelType=DIESEL&yearFrom=1950&yearTo=1960`);
     await expect(visitor.page.getByText("1 vehicle found")).toBeVisible();
-    await visitor.page.goto(`/vehicles?q=${MODEL}&fuelType=PETROL`);
+    await go(visitor.page, `/vehicles?q=${MODEL}&fuelType=PETROL`);
     await expect(visitor.page.getByText("0 vehicles found")).toBeVisible();
-    await visitor.page.goto(`/vehicles?q=${MODEL}&yearFrom=1990`);
+    await go(visitor.page, `/vehicles?q=${MODEL}&yearFrom=1990`);
     await expect(visitor.page.getByText("0 vehicles found")).toBeVisible();
     await visitor.context.close();
     await context.close();
@@ -82,7 +90,7 @@ test.describe.serial("discovery, moderation and account UI", () => {
   test("a member uploads an avatar and sees it on settings", async ({ browser }) => {
     const { context, page } = await freshPage(browser);
     await signIn(page, member.email, PASSWORD);
-    await page.goto("/account");
+    await go(page, "/account");
     await expect(page.getByText("is not verified yet")).toBeVisible();
 
     await page.getByLabel("Upload avatar").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: PNG });
@@ -101,7 +109,7 @@ test.describe.serial("discovery, moderation and account UI", () => {
     const adminSession = await freshPage(browser);
     const admin = adminSession.page;
     await signIn(admin, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await admin.goto(vehicleUrl);
+    await go(admin, vehicleUrl);
 
     const controls = admin.getByRole("region", { name: "Moderator actions" });
     await controls.getByRole("button", { name: "Hide from public" }).click();
@@ -110,10 +118,10 @@ test.describe.serial("discovery, moderation and account UI", () => {
     await expect(admin.getByText("This vehicle is hidden from the public by a moderator.")).toBeVisible();
 
     const visitor = await freshPage(browser);
-    const response = await visitor.page.goto(vehicleUrl);
+    const response = await go(visitor.page, vehicleUrl);
     expect(response?.status()).toBe(404);
     await expect(visitor.page.getByText("We could not find that page")).toBeVisible();
-    await visitor.page.goto(`/vehicles?q=${MODEL}`);
+    await go(visitor.page, `/vehicles?q=${MODEL}`);
     await expect(visitor.page.getByText("0 vehicles found")).toBeVisible();
     expect(await (await visitor.page.request.get("/sitemap.xml")).text()).not.toContain(vehicleId);
 
@@ -122,7 +130,7 @@ test.describe.serial("discovery, moderation and account UI", () => {
     await controls.getByRole("button", { name: "Confirm unhide" }).click();
     await expect(admin.getByText("This vehicle is hidden from the public by a moderator.")).toHaveCount(0);
 
-    expect((await visitor.page.goto(vehicleUrl))?.status()).toBe(200);
+    expect((await go(visitor.page, vehicleUrl))?.status()).toBe(200);
     expect(await (await visitor.page.request.get("/sitemap.xml")).text()).toContain(vehicleId);
     await visitor.context.close();
     await adminSession.context.close();
@@ -135,7 +143,7 @@ test.describe.serial("discovery, moderation and account UI", () => {
     const adminSession = await freshPage(browser);
     const admin = adminSession.page;
     await signIn(admin, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await admin.goto(`/users/${memberId}`);
+    await go(admin, `/users/${memberId}`);
     await admin.getByRole("button", { name: "Ban user" }).click();
     await admin.getByPlaceholder("Reason (recorded in the audit log)").fill("Posting spam listings");
     await admin.getByRole("button", { name: "Confirm ban" }).click();
@@ -151,21 +159,23 @@ test.describe.serial("discovery, moderation and account UI", () => {
 
     // And a fresh sign-in is refused.
     const retry = await freshPage(browser);
-    await retry.page.goto("/login");
+    await go(retry.page, "/login");
     await retry.page.getByPlaceholder("Email").fill(member.email);
     await retry.page.getByPlaceholder("Password").fill(PASSWORD);
     await retry.page.getByRole("button", { name: "Sign In" }).click();
     await expect(retry.page.getByText("Invalid email or password.")).toBeVisible();
     await retry.context.close();
 
-    await admin.goto("/moderation/log");
+    await go(admin, "/moderation/log");
     // Scope to log entries: the filter dropdown also contains these labels as <option>s.
     const entries = admin.locator("main ul > li");
-    await expect(entries.filter({ hasText: "User banned" }).filter({ hasText: "Reason: Posting spam listings" })).toHaveCount(1);
-    await expect(entries.filter({ hasText: "Content hidden" }).filter({ hasText: "Reason: Disputed ownership claim" })).toHaveCount(1);
-    await expect(entries.filter({ hasText: "Content unhidden" }).filter({ hasText: "Reason: Claim verified" })).toHaveCount(1);
+    // `.first()`: CI retries re-run this whole serial group against the same database, so earlier attempts may
+    // already have logged identical entries.
+    await expect(entries.filter({ hasText: "User banned" }).filter({ hasText: "Reason: Posting spam listings" }).first()).toBeVisible();
+    await expect(entries.filter({ hasText: "Content hidden" }).filter({ hasText: "Reason: Disputed ownership claim" }).first()).toBeVisible();
+    await expect(entries.filter({ hasText: "Content unhidden" }).filter({ hasText: "Reason: Claim verified" }).first()).toBeVisible();
 
-    await admin.goto(`/users/${memberId}`);
+    await go(admin, `/users/${memberId}`);
     await admin.getByRole("button", { name: "Lift ban" }).click();
     await admin.getByRole("button", { name: "Confirm unban" }).click();
     await expect(admin.getByText("This account is suspended.")).toHaveCount(0);
@@ -174,22 +184,22 @@ test.describe.serial("discovery, moderation and account UI", () => {
 
   test("password recovery pages behave without leaking whether an account exists", async ({ browser }) => {
     const { context, page } = await freshPage(browser);
-    await page.goto("/login");
+    await go(page, "/login");
     await page.getByRole("link", { name: "Forgot your password?" }).click();
     await page.getByPlaceholder("Email").fill(`nobody.${stamp}@example.com`);
     await page.getByRole("button", { name: "Send reset link" }).click();
     await expect(page.getByText("If an account exists for that address")).toBeVisible();
 
-    await page.goto("/reset-password");
+    await go(page, "/reset-password");
     await expect(page.getByText("This link is missing its token.")).toBeVisible();
 
-    await page.goto(`/reset-password?token=${"x".repeat(43)}`);
+    await go(page, `/reset-password?token=${"x".repeat(43)}`);
     await page.getByPlaceholder("New password (min 8 chars)").fill("a-new-password-1");
     await page.getByPlaceholder("Repeat new password").fill("a-new-password-1");
     await page.getByRole("button", { name: "Update password" }).click();
     await expect(page.locator("main").getByRole("alert")).toContainText("invalid or has expired");
 
-    await page.goto(`/verify-email?token=${"y".repeat(43)}`);
+    await go(page, `/verify-email?token=${"y".repeat(43)}`);
     await page.getByRole("button", { name: "Confirm email address" }).click();
     await expect(page.locator("main").getByRole("alert")).toContainText("invalid or has expired");
     await context.close();
@@ -203,7 +213,7 @@ test.describe.serial("discovery, moderation and account UI", () => {
     const sitemap = await (await request.get("/sitemap.xml")).text();
     expect(sitemap).toContain(`/vehicles/${vehicleId}`);
 
-    await page.goto(vehicleUrl);
+    await go(page, vehicleUrl);
     await expect(page).toHaveTitle(`1957 Hillman ${MODEL} | Cars of Ceylon`);
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", `1957 Hillman ${MODEL}`);
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", /opengraph-image/);
@@ -213,11 +223,11 @@ test.describe.serial("discovery, moderation and account UI", () => {
     expect(vehicleImage.headers()["content-type"]).toContain("image/png");
     expect((await request.get("/opengraph-image")).headers()["content-type"]).toContain("image/png");
 
-    const missing = await page.goto("/vehicles/does-not-exist");
+    const missing = await go(page, "/vehicles/does-not-exist");
     expect(missing?.status()).toBe(404);
     await expect(page.getByRole("heading", { name: "We could not find that page" })).toBeVisible();
 
-    await page.goto("/");
+    await go(page, "/");
     await expect(page.getByRole("heading", { name: /Preserve the history/ })).toBeVisible();
     await expect(page.getByLabel("Archive statistics")).toContainText("Vehicles");
     await expect(page.getByRole("heading", { name: "Recently added" })).toBeVisible();
