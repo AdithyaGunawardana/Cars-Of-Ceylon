@@ -60,8 +60,9 @@ export default async function Home() {
             ["Timeline events", eventCount],
             ["Photos", photoCount],
           ].map(([label, value]) => (
-            <div key={label} className={cardClass}>
-              <dt className="text-xs uppercase tracking-[0.2em] text-[#725a39]">{label}</dt>
+            <div key={label} className={`${cardClass} !p-4 sm:!p-5`}>
+              {/* break-normal: these are fixed labels, never break them mid-word (the global rule for user text would). */}
+              <dt className="break-normal text-[11px] uppercase tracking-[0.12em] text-[#725a39] sm:text-xs sm:tracking-[0.2em]">{label}</dt>
               <dd className="mt-1 font-serif text-3xl">{value}</dd>
             </div>
           ))}

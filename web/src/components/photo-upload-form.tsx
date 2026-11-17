@@ -123,6 +123,8 @@ export function PhotoUploadForm({ vehicleId, canContribute, isSignedIn }: Props)
         signal: controller.signal,
       });
       if (!finalize.ok) throw new Error(await readApiError(finalize, "Failed to save photo."));
+      // Consume the body so the request completes cleanly (an unread body is reported as aborted if the page navigates).
+      await finalize.json().catch(() => null);
 
       pendingRef.current = null;
       formRef.current?.reset();
