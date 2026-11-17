@@ -1,0 +1,111 @@
+name: Branch rules
+
+# Enforces the branch naming scheme in CONTRIBUTING.md in three places:
+#   1. A repository ruleset ("branch-naming") rejects pushes that create branches outside the allowed prefixes.
+#   2. `delete-invalid-branch` (below) deletes any new branch whose full name is invalid: the ruleset can only match
+#      prefixes, so `feat/Bad_Name` gets past it and is caught here.
+#   3. `branch-name` and `pr-source` are required status checks on pull requests.
+#
+# SECURITY: branch names are attacker-controlled text (they may contain `$(...)`, quotes, backticks). They are only
+# ever passed through `env:` and quoted, never interpolated into a `run:` script.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+  create:
+
+permissions:
+  contents: read
+
+env:
+  # Types accepted before the slash; description rules are checked separately below.
+  TYPES: feat|fix|hotfix|chore|docs|refactor|test
+
+jobs:
+  # Required check on every pull request.
+  branch-name:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          set -eu
+          if [[ "$BRANCH" =~ ^(main|development)$ ]]; then exit 0; fi
+          if [[ "$BRANCH" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then exit 0; fi
+          if [[ "$BRANCH" =~ ^(${TYPES})/([a-z0-9]+(-[a-z0-9]+)*)$ ]]; then
+            desc="${BASH_REMATCH[2]}"
+            if [ "${#desc}" -ge 3 ] && [ "${#desc}" -le 50 ]; then exit 0; fi
+            echo "::error::The part after the slash must be 3-50 characters (got ${#desc}): $BRANCH"
+            exit 1
+          fi
+          echo "::error::Branch name '$BRANCH' does not follow the naming scheme. Use <type>/<description> with type one of: ${TYPES//|/, }; lowercase letters, digits and single hyphens only. See CONTRIBUTING.md."
+          exit 1
+
+  # Required check on pull requests into main: only `development` (releases) or `hotfix/*` may target it.
+  pr-source:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the source branch for this target
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+          FROM_FORK: ${{ github.event.pull_request.head.repo.fork }}
+        run: |
+          set -eu
+          if [ "$BASE" != "main" ]; then
+            echo "Target is '$BASE'; the main-only source rule does not apply."
+            exit 0
+          fi
+          if [ "$FROM_FORK" = "true" ]; then
+            echo "::error::Pull requests into main must come from this repository's development or hotfix branches, not a fork."
+            exit 1
+          fi
+          if [ "$HEAD_BRANCH" = "development" ] || [[ "$HEAD_BRANCH" =~ ^hotfix/ ]]; then
+            exit 0
+          fi
+          echo "::error::Only 'development' (release) or 'hotfix/*' branches may be merged into main; this PR comes from '$HEAD_BRANCH'. Open the PR against development instead."
+          exit 1
+
+  # Backstop for the ruleset: delete branches that were created with an invalid name.
+  delete-invalid-branch:
+    if: github.event_name == 'create' && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete the branch if its name is invalid
+        env:
+          BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          valid=false
+          if [[ "$BRANCH" =~ ^(main|development)$ ]]; then valid=true; fi
+          if [[ "$BRANCH" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then valid=true; fi
+          if [[ "$BRANCH" =~ ^(${TYPES})/([a-z0-9]+(-[a-z0-9]+)*)$ ]]; then
+            desc="${BASH_REMATCH[2]}"
+            if [ "${#desc}" -ge 3 ] && [ "${#desc}" -le 50 ]; then valid=true; fi
+          fi
+
+          if [ "$valid" = "true" ]; then
+            echo "Branch name is valid: $BRANCH"
+            exit 0
+          fi
+
+          # Never touch the protected branches, even if the pattern logic above is ever edited wrongly.
+          if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "development" ]; then exit 0; fi
+
+          echo "::warning::Deleting branch '$BRANCH': it does not follow the naming scheme in CONTRIBUTING.md."
+          # URL-encode the ref so slashes and odd characters cannot alter the API path.
+          ref=$(jq -rn --arg b "$BRANCH" '$b|@uri')
+          gh api -X DELETE "repos/${REPO}/git/refs/heads/${ref}"
+          {
+            echo "### Branch deleted"
+            echo
+            echo "\`$BRANCH\` was deleted because its name does not follow the naming scheme."
+            echo "Recreate it as \`<type>/<description>\` (feat, fix, hotfix, chore, docs, refactor, test) in lowercase with hyphens. See CONTRIBUTING.md."
+          } >> "$GITHUB_STEP_SUMMARY"

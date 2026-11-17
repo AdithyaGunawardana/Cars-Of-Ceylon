@@ -1,21 +1,51 @@
 name: Web CI
 
 on:
+  # No `paths:` filter: web-quality and web-integration are *required* status checks, and a workflow that never
+  # starts leaves a required check pending forever (docs-only or mobile-only PRs would be unmergeable).
+  # Instead the `changes` job decides, and a job skipped by `if:` counts as passing for required checks.
   pull_request:
-    paths:
-      - "web/**"
-      - ".github/workflows/web-ci.yml"
   push:
     # `development` is the integration branch; `main` only receives it at release time.
     branches:
       - main
       - development
-    paths:
-      - "web/**"
-      - ".github/workflows/web-ci.yml"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.diff.outputs.web }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did web/ or this workflow change?
+        id: diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+            range="${base}..${{ github.sha }}"
+          fi
+          # New branches report an all-zero "before" sha, and force pushes can leave it unknown: run everything.
+          if [ -z "$base" ] || echo "$base" | grep -qE '^0+$' || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            web=true
+          elif git diff --name-only "$range" | grep -qE '^(web/|\.github/workflows/web-ci\.yml$)'; then
+            web=true
+          else
+            web=false
+          fi
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "web changed: $web"
+
   web-quality:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -57,6 +87,8 @@ jobs:
 
   # Real Postgres + MinIO: route-handler integration tests and Playwright browser tests.
   web-integration:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
