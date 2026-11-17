@@ -6,8 +6,10 @@ on:
       - "web/**"
       - ".github/workflows/web-ci.yml"
   push:
+    # `development` is the integration branch; `main` only receives it at release time.
     branches:
       - main
+      - development
     paths:
       - "web/**"
       - ".github/workflows/web-ci.yml"
@@ -46,8 +48,12 @@ jobs:
       - name: Run unit tests
         run: npm run test
 
+      # The build imports route modules, and src/lib/prisma.ts requires DATABASE_URL at import time.
+      # No connection is made during the build, so a placeholder is enough.
       - name: Run build
         run: npm run build
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/build_placeholder
 
   # Real Postgres + MinIO: route-handler integration tests and Playwright browser tests.
   web-integration:
@@ -79,13 +85,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # GitHub service containers cannot pass a command, so MinIO is started with docker run.
+      # The upstream minio/minio images are no longer published (Docker Hub and quay.io); the project is archived.
+      # The Bitnami legacy mirror keeps the last build, pinned here so CI cannot drift. The image starts the server
+      # itself, so no command is passed.
       - name: Start MinIO
         working-directory: .
         run: |
           docker run -d --name minio -p 9000:9000 \
             -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:latest server /data
+            bitnamilegacy/minio:2025.7.23-debian-12-r5
           for i in $(seq 1 30); do
             curl -sf http://localhost:9000/minio/health/live && exit 0
             sleep 1
