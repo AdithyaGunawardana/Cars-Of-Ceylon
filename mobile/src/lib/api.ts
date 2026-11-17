@@ -210,10 +210,9 @@ export async function uploadPhotoWithProgress(
 ) {
   const blob = await (await fetch(fileUri)).blob();
 
-  let xhr: XMLHttpRequest | null = null;
+  const xhr = new XMLHttpRequest();
 
   const promise = new Promise<void>((resolve, reject) => {
-    xhr = new XMLHttpRequest();
     xhr.open("PUT", uploadUrl);
     xhr.setRequestHeader("Content-Type", contentType);
     xhr.upload.onprogress = (event) => {
@@ -235,6 +234,6 @@ export async function uploadPhotoWithProgress(
 
   return {
     promise,
-    cancel: () => xhr?.abort(),
+    cancel: () => xhr.abort(),
   };
 }

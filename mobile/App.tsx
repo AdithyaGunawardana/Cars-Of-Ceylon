@@ -369,7 +369,8 @@ function VehiclesScreen({ onOpenVehicle, onOpenProfile }: { onOpenVehicle: (vehi
             ) : null}
           </Pressable>
         )}
-        ListEmptyComponent={!loading ? <Text style={styles.sectionMeta}>No vehicles matched your filters.</Text> : null}
+        // FlatList's prop type no longer accepts null (React Native 0.88 types); undefined renders nothing.
+        ListEmptyComponent={!loading ? <Text style={styles.sectionMeta}>No vehicles matched your filters.</Text> : undefined}
         contentContainerStyle={{ paddingBottom: 16 }}
       />
 
@@ -407,7 +408,8 @@ function VehicleDetailScreen({ vehicleId, session, onBack, onOpenProfile }: { ve
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
 
-  const [eventType, setEventType] = useState("NOTE");
+  // Fixed to NOTE for now; an event-type picker (like the web form) is part of the P4 create/edit work.
+  const [eventType] = useState("NOTE");
   const [eventTitle, setEventTitle] = useState("");
   const [eventDetails, setEventDetails] = useState("");
   const [editingEvent, setEditingEvent] = useState<VehicleEvent | null>(null);
@@ -556,7 +558,7 @@ function VehicleDetailScreen({ vehicleId, session, onBack, onOpenProfile }: { ve
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       quality: 0.85,
     });
@@ -823,16 +825,14 @@ function ReportsScreen({ session, onOpenVehicle }: { session: AuthSession; onOpe
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [status, setStatus] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [queueMessage, setQueueMessage] = useState<string | null>(null);
   // Role comes from the web session (UI hint only; the API re-checks permissions on every call).
   const isModerator = session.user.role === "MODERATOR" || session.user.role === "ADMIN";
+  // Only moderators load the queue, so everyone else starts out "not loading" (no state change needed in the effect).
+  const [loading, setLoading] = useState(isModerator);
+  const [queueMessage, setQueueMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isModerator) {
-      setLoading(false);
-      return;
-    }
+    if (!isModerator) return;
     let active = true;
     async function loadQueue() {
       try {

@@ -1,0 +1,23 @@
+# Dependencies and Expo generated files
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Native builds and signing material (never commit)
+android/
+ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Local environment overrides
+.env*.local
+
+# Logs and misc
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
