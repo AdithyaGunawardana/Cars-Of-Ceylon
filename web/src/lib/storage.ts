@@ -19,6 +19,11 @@ export function createS3Client(config: StorageConfig) {
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
     },
+    // The SDK's default ("WHEN_SUPPORTED") bakes a CRC32 of an *empty* body into presigned PUT URLs
+    // (x-amz-checksum-crc32=AAAAAA==). Servers that validate checksums, including AWS S3 and R2, then reject the
+    // browser's real upload. Only add checksums where an operation requires them (DeleteObjects still gets one).
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 }
 
