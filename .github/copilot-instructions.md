@@ -66,3 +66,7 @@ Always:
 -   Ask permission before adding new features or generating code
 -   Use comments to clarify purpose
 -   Explain and teach what the code does and how it fits into the overall project (describe it like teaching a monkey how to code)
+
+## Branches and pull requests
+
+See CONTRIBUTING.md: never push to main; PRs target development; branch names are <type>/<description> (feat, fix, hotfix, chore, docs, refactor, test).
