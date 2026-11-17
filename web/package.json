@@ -32,7 +32,7 @@
     "bcryptjs": "^3.0.3",
     "next": "^16.4.6",
     "next-auth": "^4.24.15",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^10.6.0",
     "pg": "^8.20.0",
     "prisma": "^7.5.0",
     "react": "19.2.4",
@@ -53,5 +53,10 @@
     "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^4.1.2"
+  },
+  "overrides": {
+    "next-auth": {
+      "nodemailer": "$nodemailer"
+    }
   }
 }
