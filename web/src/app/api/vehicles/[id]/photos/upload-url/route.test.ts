@@ -57,6 +57,7 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
 
   it("returns 400 for unsupported file type", async () => {
     vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER", bannedAt: null } as never);
 
     const request = new Request("http://localhost/api/vehicles/v1/photos/upload-url", {
       method: "POST",
@@ -74,6 +75,7 @@ describe("POST /api/vehicles/:id/photos/upload-url", () => {
 
   it("returns 400 when file size exceeds max bytes", async () => {
     vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER", bannedAt: null } as never);
 
     const request = new Request("http://localhost/api/vehicles/v1/photos/upload-url", {
       method: "POST",

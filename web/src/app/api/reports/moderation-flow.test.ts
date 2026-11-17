@@ -20,6 +20,8 @@ const reportsStore: Array<{
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: vi.fn(),
+    moderationLog: { create: vi.fn() },
     user: { findUnique: vi.fn() },
     vehicle: { findUnique: vi.fn() },
     report: {
@@ -134,6 +136,7 @@ describe("Moderation flow integration-style test", () => {
     // Reset in-memory report state and all mocked behavior between runs.
     reportsStore.length = 0;
     vi.clearAllMocks();
+    vi.mocked(prisma.$transaction).mockImplementation((async (fn: (tx: unknown) => unknown) => fn(prisma)) as never);
     resetRateLimits();
   });
 

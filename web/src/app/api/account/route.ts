@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { errorResponse, requireSession } from "@/lib/api-auth";
 import { accountResponseSchema, updateAccountSchema } from "@/lib/contracts/user-contracts";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { prisma } from "@/lib/prisma";
+import { createS3Client } from "@/lib/storage";
+import { getUploadStorageConfig } from "@/lib/upload-config";
 
-const accountSelect = { id: true, name: true, email: true, image: true, profile: true } as const;
+const accountSelect = { id: true, name: true, email: true, image: true, profile: true, avatarKey: true } as const;
 
 function toAccount(user: { id: string; name: string | null; email: string; image: string | null; profile: unknown }) {
   const bio = user.profile && typeof user.profile === "object" ? (user.profile as { bio?: unknown }).bio : null;
@@ -36,6 +39,8 @@ export async function PATCH(request: Request) {
   if (!existing) return errorResponse("Unauthorized", 401);
 
   const { name, bio, image } = parsed.data;
+  // Replacing an uploaded avatar with a link (or removing it) retires the stored object.
+  const retireUploadedAvatar = image !== undefined && image !== existing.image && Boolean(existing.avatarKey);
   const currentProfile =
     existing.profile && typeof existing.profile === "object" && !Array.isArray(existing.profile)
       ? (existing.profile as Record<string, unknown>)
@@ -45,11 +50,20 @@ export async function PATCH(request: Request) {
     where: { id: auth.userId },
     data: {
       ...(name !== undefined ? { name } : {}),
-      ...(image !== undefined ? { image: image || null } : {}),
+      ...(image !== undefined ? { image: image || null, ...(retireUploadedAvatar ? { avatarKey: null } : {}) } : {}),
       ...(bio !== undefined ? { profile: { ...currentProfile, bio } } : {}),
     },
     select: accountSelect,
   });
+
+  if (retireUploadedAvatar && existing.avatarKey) {
+    const config = getUploadStorageConfig();
+    if (config) {
+      await createS3Client(config)
+        .send(new DeleteObjectCommand({ Bucket: config.bucket, Key: existing.avatarKey }))
+        .catch((error: unknown) => console.error("Failed to delete old avatar", existing.avatarKey, error));
+    }
+  }
 
   return NextResponse.json(toAccount(updated));
 }

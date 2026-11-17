@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { HideContentControl } from "@/components/moderation-actions";
 import {
   dangerButtonClass,
   inputClass,
@@ -14,6 +15,7 @@ export type AlbumPhoto = {
   id: string;
   url: string;
   caption: string | null;
+  hiddenAt?: string | null;
 };
 
 type Props = {
@@ -21,10 +23,12 @@ type Props = {
   vehicleName: string;
   photos: AlbumPhoto[];
   canManage: boolean;
+  // Moderators/admins get hide/unhide controls (the API re-checks the role).
+  canModerate?: boolean;
 };
 
 // Thumbnail grid with a keyboard-accessible lightbox plus caption edit/delete for managers.
-export function PhotoAlbum({ vehicleId, vehicleName, photos, canManage }: Props) {
+export function PhotoAlbum({ vehicleId, vehicleName, photos, canManage, canModerate = false }: Props) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -160,6 +164,16 @@ export function PhotoAlbum({ vehicleId, vehicleName, photos, canManage }: Props)
                 ) : (
                   <>
                     <p className="text-sm text-[#271310]">{photo.caption ?? "Untitled photo"}</p>
+                    {photo.hiddenAt ? (
+                      <p className="mt-1 w-fit rounded-full bg-[#fff7e6] px-3 py-1 text-xs text-[#725a39] ring-1 ring-[#d3c3c0]/70">
+                        Hidden from the public
+                      </p>
+                    ) : null}
+                    {canModerate ? (
+                      <div className="mt-2">
+                        <HideContentControl targetType="PHOTO" targetId={photo.id} hidden={Boolean(photo.hiddenAt)} />
+                      </div>
+                    ) : null}
                     {canManage ? (
                       <div className="mt-2 flex gap-2">
                         <button

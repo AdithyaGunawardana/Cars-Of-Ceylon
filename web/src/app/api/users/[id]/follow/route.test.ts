@@ -43,6 +43,7 @@ describe("/api/users/:id/follow route", () => {
 
   it("returns 400 when attempting to follow yourself", async () => {
     vi.mocked(getAuthSession).mockResolvedValue({ user: { id: "u1" } } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: "u1", role: "USER", bannedAt: null } as never);
 
     const response = await POST(new Request("http://localhost/api/users/u1/follow", { method: "POST" }), {
       params: Promise.resolve({ id: "u1" }),

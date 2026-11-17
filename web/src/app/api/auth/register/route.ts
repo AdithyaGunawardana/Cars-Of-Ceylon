@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { sendVerificationEmail } from "@/lib/account-emails";
 import { prisma } from "@/lib/prisma";
 import { getClientIp, rateLimit } from "@/lib/rate-limit";
 
@@ -60,6 +61,9 @@ export async function POST(request: Request) {
       createdAt: true,
     },
   });
+
+  // Best effort: a mail outage must not block sign-up; the account page offers a resend.
+  await Promise.resolve(sendVerificationEmail(user.email)).catch((error: unknown) => console.error("Failed to send verification email", error));
 
   return NextResponse.json({ user }, { status: 201 });
 }

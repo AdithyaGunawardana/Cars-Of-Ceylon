@@ -67,6 +67,7 @@ export function getAppTestEnv(): Record<string, string> {
     UPLOAD_S3_ACCESS_KEY_ID: s3.accessKeyId,
     UPLOAD_S3_SECRET_ACCESS_KEY: s3.secretAccessKey,
     UPLOAD_S3_PUBLIC_BASE_URL: `${s3.endpoint}/${s3.bucket}`,
+    MAIL_TRANSPORT: "memory",
   };
 }
 

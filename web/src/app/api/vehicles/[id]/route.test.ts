@@ -12,11 +12,12 @@ vi.mock("@/lib/prisma", () => ({
     vehicle: {
       findUnique: vi.fn(),
       update: vi.fn(),
-      delete: vi.fn(),
     },
     user: {
       findUnique: vi.fn(),
     },
+    moderationLog: { create: vi.fn() },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -29,6 +30,7 @@ describe("/api/vehicles/:id route", () => {
   beforeEach(() => {
     // Clear all mock state between route scenarios.
     vi.clearAllMocks();
+    vi.mocked(prisma.$transaction).mockImplementation((async (fn: (tx: unknown) => unknown) => fn(prisma)) as never);
   });
 
   describe("GET /api/vehicles/:id", () => {
@@ -199,7 +201,14 @@ describe("/api/vehicles/:id route", () => {
       });
 
       expect(response.status).toBe(204);
-      expect(prisma.vehicle.delete).toHaveBeenCalledWith({ where: { id: "v1" } });
+      // Soft delete: the row is flagged, not removed, and a moderator's deletion is audited.
+      expect(prisma.vehicle.update).toHaveBeenCalledWith({
+        where: { id: "v1" },
+        data: { deletedAt: expect.any(Date), deletedById: "u-mod" },
+      });
+      expect(prisma.moderationLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ action: "VEHICLE_DELETE", targetType: "VEHICLE", targetId: "v1", actorId: "u-mod" }),
+      });
     });
   });
 });

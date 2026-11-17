@@ -1,7 +1,10 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthSession } from "@/auth";
+import { EmailVerificationNotice } from "@/components/email-verification-notice";
 import { AccountSettingsForm } from "@/components/account-settings-form";
 import { prisma } from "@/lib/prisma";
+import { getUploadStorageConfig } from "@/lib/upload-config";
 
 export default async function AccountPage() {
   const session = await getAuthSession();
@@ -9,7 +12,7 @@ export default async function AccountPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { name: true, email: true, image: true, profile: true },
+    select: { name: true, email: true, image: true, profile: true, emailVerified: true },
   });
   if (!user) redirect("/login?callbackUrl=/account");
 
@@ -22,8 +25,13 @@ export default async function AccountPage() {
         <h1 className="font-serif text-3xl text-[#271310]">Settings</h1>
         <p className="mt-1 text-sm text-[#504442]">Signed in as {user.email}</p>
       </div>
+      <EmailVerificationNotice email={user.email} verified={Boolean(user.emailVerified)} />
+      <Link href="/account/vehicles" className="w-fit text-sm font-semibold text-[#725a39] hover:text-[#271310]">
+        Deleted vehicles (restore within 30 days)
+      </Link>
       <AccountSettingsForm
         initial={{ name: user.name ?? "", bio: typeof bio === "string" ? bio : "", image: user.image ?? "" }}
+        storageEnabled={Boolean(getUploadStorageConfig())}
       />
     </main>
   );

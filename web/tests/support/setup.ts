@@ -4,7 +4,8 @@ import { vi } from "vitest";
 vi.mock("@/auth", () => ({
   getAuthSession: vi.fn(async () => {
     const userId = (globalThis as { __testUserId?: string | null }).__testUserId;
-    return userId ? { user: { id: userId } } : null;
+    const issuedAt = (globalThis as { __testIssuedAt?: number }).__testIssuedAt;
+    return userId ? { user: { id: userId }, ...(issuedAt !== undefined ? { issuedAt } : {}) } : null;
   }),
   authOptions: {},
 }));

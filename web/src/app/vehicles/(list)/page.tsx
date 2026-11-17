@@ -1,6 +1,13 @@
 import Link from "next/link";
 
+import { inputClass, primaryButtonClass, secondaryButtonClass } from "@/lib/client-utils";
+import { BODY_TYPES, FUEL_TYPES, TRANSMISSIONS, labelForOption } from "@/lib/vehicle-attributes";
 import { listPublicVehicles, parseVehicleListParams } from "@/lib/vehicle-queries";
+
+// Every filter that must survive pagination links.
+const FILTER_KEYS = [
+  "q", "search", "manufacturer", "model", "year", "yearFrom", "yearTo", "sort", "color", "fuelType", "transmission", "bodyType",
+] as const;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -25,7 +32,7 @@ export default async function VehiclesPage({
   // Preserve active filters in pagination links.
   function pageHref(page: number) {
     const next = new URLSearchParams();
-    for (const key of ["search", "manufacturer", "model", "year"] as const) {
+    for (const key of FILTER_KEYS) {
       const value = firstValue(params[key])?.trim();
       if (value) next.set(key, value);
     }
@@ -49,37 +56,72 @@ export default async function VehiclesPage({
         </Link>
       </header>
 
-      <form className="grid gap-3 rounded-3xl bg-[#f5f4e8] p-4 shadow-[0_14px_35px_rgba(27,28,21,0.05)] ring-1 ring-[#d3c3c0]/70 md:grid-cols-5">
+      <form className="grid gap-3 rounded-3xl bg-[#f5f4e8] p-4 shadow-[0_14px_35px_rgba(27,28,21,0.05)] ring-1 ring-[#d3c3c0]/70">
         <input
-          name="search"
-          defaultValue={firstValue(params.search)}
-          placeholder="Plate / Unique ID"
-          className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
+          name="q"
+          type="search"
+          defaultValue={firstValue(params.q)}
+          aria-label="Search the archive"
+          placeholder="Search make, model, story, plate..."
+          className={inputClass}
         />
-        <input
-          name="manufacturer"
-          defaultValue={firstValue(params.manufacturer)}
-          placeholder="Manufacturer"
-          className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
-        />
-        <input
-          name="model"
-          defaultValue={firstValue(params.model)}
-          placeholder="Model"
-          className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
-        />
-        <input
-          name="year"
-          defaultValue={firstValue(params.year)}
-          placeholder="Year"
-          className="rounded-full border border-[#d3c3c0] bg-[#fbfaee] px-3 py-2 text-sm text-[#271310] placeholder:text-[#765f5c]"
-        />
-        <button
-          type="submit"
-          className="rounded-full bg-[#725a39] px-3 py-2 text-sm font-semibold text-[#fbfaee] hover:bg-[#5b403c]"
-        >
-          Search
-        </button>
+        <div className="grid gap-3 md:grid-cols-5">
+          <input name="search" defaultValue={firstValue(params.search)} placeholder="Plate / Unique ID" className={inputClass} />
+          <input name="manufacturer" defaultValue={firstValue(params.manufacturer)} placeholder="Manufacturer" className={inputClass} />
+          <input name="model" defaultValue={firstValue(params.model)} placeholder="Model" className={inputClass} />
+          <input name="year" defaultValue={firstValue(params.year)} placeholder="Year" className={inputClass} />
+          <label className="grid gap-1 text-xs text-[#504442]">
+            Sort by
+            <select name="sort" defaultValue={firstValue(params.sort) ?? ""} className={inputClass}>
+              <option value="">Default</option>
+              <option value="newest">Newest added</option>
+              <option value="oldest">Oldest added</option>
+              <option value="year_desc">Year, newest first</option>
+              <option value="year_asc">Year, oldest first</option>
+              <option value="name">Make and model</option>
+              <option value="relevance">Best match</option>
+            </select>
+          </label>
+        </div>
+        <div className="grid gap-3 md:grid-cols-6">
+          <label className="grid gap-1 text-xs text-[#504442]">
+            Year from
+            <input name="yearFrom" type="number" min={1886} max={2100} defaultValue={firstValue(params.yearFrom)} className={inputClass} />
+          </label>
+          <label className="grid gap-1 text-xs text-[#504442]">
+            Year to
+            <input name="yearTo" type="number" min={1886} max={2100} defaultValue={firstValue(params.yearTo)} className={inputClass} />
+          </label>
+          <label className="grid gap-1 text-xs text-[#504442]">
+            Colour
+            <input name="color" defaultValue={firstValue(params.color)} className={inputClass} />
+          </label>
+          <label className="grid gap-1 text-xs text-[#504442]">
+            Fuel
+            <select name="fuelType" defaultValue={firstValue(params.fuelType) ?? ""} className={inputClass}>
+              <option value="">Any</option>
+              {FUEL_TYPES.map((value) => <option key={value} value={value}>{labelForOption(value)}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs text-[#504442]">
+            Transmission
+            <select name="transmission" defaultValue={firstValue(params.transmission) ?? ""} className={inputClass}>
+              <option value="">Any</option>
+              {TRANSMISSIONS.map((value) => <option key={value} value={value}>{labelForOption(value)}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs text-[#504442]">
+            Body type
+            <select name="bodyType" defaultValue={firstValue(params.bodyType) ?? ""} className={inputClass}>
+              <option value="">Any</option>
+              {BODY_TYPES.map((value) => <option key={value} value={value}>{labelForOption(value)}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="flex gap-2">
+          <button type="submit" className={primaryButtonClass}>Search</button>
+          <Link href="/vehicles" className={secondaryButtonClass}>Reset</Link>
+        </div>
       </form>
 
       {filtersInvalid ? (

@@ -9,6 +9,8 @@ vi.mock("@/auth", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: vi.fn(),
+    moderationLog: { create: vi.fn() },
     user: { findUnique: vi.fn() },
     report: {
       findUnique: vi.fn(),
@@ -26,6 +28,7 @@ describe("PATCH /api/reports/:id", () => {
   beforeEach(() => {
     // Reset mocks between scenarios.
     vi.clearAllMocks();
+    vi.mocked(prisma.$transaction).mockImplementation((async (fn: (tx: unknown) => unknown) => fn(prisma)) as never);
   });
 
   it("returns 401 when user is not authenticated", async () => {

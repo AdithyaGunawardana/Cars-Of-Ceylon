@@ -10,6 +10,8 @@ export async function loadUserProfile(profileUserId: string, viewerUserId?: stri
         email: true,
         image: true,
         profile: true,
+        bannedAt: true,
+        role: true,
       },
     }),
     viewerUserId
@@ -26,7 +28,14 @@ export async function loadUserProfile(profileUserId: string, viewerUserId?: stri
 
   // Email is private: only the account owner and admins may see it.
   const canSeeEmail = Boolean(viewer && (viewer.id === profileUserId || viewer.role === "ADMIN"));
-  const publicUser = { ...user, email: canSeeEmail ? user.email : null };
+  // Suspension status is moderator-only information.
+  const { bannedAt, role, ...rest } = user;
+  const isModeratorViewer = viewer?.role === "MODERATOR" || viewer?.role === "ADMIN";
+  const publicUser = {
+    ...rest,
+    email: canSeeEmail ? user.email : null,
+    ...(isModeratorViewer ? { bannedAt, role } : {}),
+  };
 
   const canSeePrivateVehicles = Boolean(
     viewer && (viewer.id === profileUserId || viewer.role === "MODERATOR" || viewer.role === "ADMIN"),
@@ -36,7 +45,8 @@ export async function loadUserProfile(profileUserId: string, viewerUserId?: stri
     prisma.vehicle.findMany({
       where: {
         createdByUserId: profileUserId,
-        ...(canSeePrivateVehicles ? {} : { visibility: "PUBLIC" as const }),
+        deletedAt: null,
+        ...(canSeePrivateVehicles ? {} : { visibility: "PUBLIC" as const, hiddenAt: null }),
       },
       orderBy: { createdAt: "desc" },
       include: {

@@ -78,3 +78,27 @@ export const accountResponseSchema = z.object({
     bio: z.string().nullable(),
   }),
 });
+
+// Avatar upload (presigned PUT, then finalize).
+export const avatarUploadUrlSchema = z.object({
+  fileType: z.string().min(1).max(100),
+  fileSize: z.number().int().min(1),
+});
+
+export const avatarFinalizeSchema = z.object({
+  storageKey: z.string().min(1).max(300),
+});
+
+// Password reset and email verification.
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(20).max(200),
+  password: z.string().min(8).max(128),
+});
+
+export const confirmEmailSchema = z.object({
+  token: z.string().min(20).max(200),
+});

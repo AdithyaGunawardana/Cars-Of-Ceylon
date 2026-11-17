@@ -104,7 +104,7 @@ describe("vehicles (real Postgres)", () => {
     expect((await call(patchVehicle, { method: "PATCH", json: { model: "Moderated" }, params: { id: vehicle.id } })).status).toBe(200);
   });
 
-  it("deletes a vehicle and cascades events and photos", async () => {
+  it("soft-deletes a vehicle and keeps its events and photos for recovery", async () => {
     const owner = await createUser();
     const stranger = await createUser();
     const vehicle = await createVehicle(owner);
@@ -115,8 +115,9 @@ describe("vehicles (real Postgres)", () => {
 
     actAs(owner);
     expect((await call(deleteVehicle, { method: "DELETE", params: { id: vehicle.id } })).status).toBe(204);
-    expect(await db.vehicle.count()).toBe(0);
-    expect(await db.vehicleEvent.count()).toBe(0);
+    // Row and children are retained (recoverable); the purge job removes them later.
+    expect((await db.vehicle.findUniqueOrThrow({ where: { id: vehicle.id } })).deletedAt).not.toBeNull();
+    expect(await db.vehicleEvent.count()).toBe(1);
   });
 
   it("manages timeline events with permissions and orders them by occurredAt", async () => {

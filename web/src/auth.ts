@@ -40,7 +40,7 @@ const providers = [
         where: { email: parsed.data.email },
       });
 
-      if (!user?.passwordHash) {
+      if (!user?.passwordHash || user.bannedAt) {
         return null;
       }
 
@@ -105,6 +105,9 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       // Expose user id in session payload for downstream ownership/permission checks.
+      if (typeof token.iat === "number") {
+        session.issuedAt = token.iat * 1000;
+      }
       if (session.user && token.sub) {
         session.user.id = token.sub;
         session.user.role = token.role ?? "USER";
