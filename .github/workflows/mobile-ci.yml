@@ -1,0 +1,80 @@
+name: Mobile CI
+
+on:
+  # No `paths:` filter, for the same reason as web-ci.yml: `mobile-quality` is a *required* status check, and a workflow
+  # that never starts would leave it pending forever on web-only PRs. The `mobile-changes` job decides instead, and a
+  # job skipped by `if:` counts as passing.
+  pull_request:
+  push:
+    branches:
+      - main
+      - development
+
+jobs:
+  mobile-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      mobile: ${{ steps.diff.outputs.mobile }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Did mobile/ or this workflow change?
+        id: diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+            range="${base}..${{ github.sha }}"
+          fi
+          # New branches report an all-zero "before" sha, and force pushes can leave it unknown: run everything.
+          if [ -z "$base" ] || echo "$base" | grep -qE '^0+$' || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            mobile=true
+          elif git diff --name-only "$range" | grep -qE '^(mobile/|\.github/workflows/mobile-ci\.yml$)'; then
+            mobile=true
+          else
+            mobile=false
+          fi
+          echo "mobile=$mobile" >> "$GITHUB_OUTPUT"
+          echo "mobile changed: $mobile"
+
+  mobile-quality:
+    needs: mobile-changes
+    if: needs.mobile-changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit and component tests
+        run: npm test -- --ci
+
+      # Bundling the Android app catches what lint/tsc/jest cannot: a test file dropped under src/app (Expo Router would
+      # treat it as a route), a bad import path, or a native module Metro cannot resolve.
+      - name: Bundle smoke test
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/expo-export"
+        env:
+          EXPO_PUBLIC_API_BASE_URL: https://api.example.com
