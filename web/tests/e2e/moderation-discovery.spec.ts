@@ -186,6 +186,9 @@ test.describe.serial("discovery, moderation and account UI", () => {
     const { context, page } = await freshPage(browser);
     await go(page, "/login");
     await page.getByRole("link", { name: "Forgot your password?" }).click();
+    // Client-side navigation: without this wait, `Email` still matches the login page's input and the text is
+    // typed into the page that is about to be replaced.
+    await expect(page.getByRole("heading", { name: "Reset password" })).toBeVisible();
     await page.getByPlaceholder("Email").fill(`nobody.${stamp}@example.com`);
     await page.getByRole("button", { name: "Send reset link" }).click();
     await expect(page.getByText("If an account exists for that address")).toBeVisible();
