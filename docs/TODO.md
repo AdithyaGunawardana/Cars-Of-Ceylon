@@ -72,7 +72,7 @@ Design notes and known limits:
 - [x] Token sign-in: `/api/mobile/auth/login|refresh|logout`, 15-min access JWT + single-use rotating refresh tokens (family revocation on replay, 180-day device cap), Bearer accepted by `getAuthSession`; the app keeps the refresh token in `expo-secure-store`
 - [x] Mobile feature parity: create/edit vehicle with attributes, search + filters + sort, timeline with event types and source links, photo caption edit/delete, follow feed, account settings (profile, avatar, password, email verification), deleted-vehicle restore, forgot password, moderator tools (hide/unhide, suspend users, audit log), configurable/auto-detected API URL
 - [x] Mobile tests (jest-expo: 61 tests) + `mobile-quality` CI job (lint, typecheck, jest, Android bundle) + EAS profiles (`mobile/eas.json`); guide in `docs/MOBILE_DEV.md`
-- [ ] Add `mobile-quality` to the required checks of the `main` and `development` rulesets (do this after the first PR that runs the job is merged)
+- [x] `mobile-quality` is a required check on the `main` and `development` rulesets (added 2026-11-17)
 - [ ] Try the app on a physical phone (Samsung S23) and note anything to improve; EAS builds need an Expo account (`eas login`) and, once a host exists, the real API URL in `eas.json`
 
 ## P5 - Production
